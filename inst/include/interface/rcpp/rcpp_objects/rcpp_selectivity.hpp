@@ -613,10 +613,22 @@ class DoubleLogisticSelectivityInterface : public SelectivityInterfaceBase {
  */
 class SelectivityatAgeInterface : public SelectivityInterfaceBase {
  public:
+   /**
+   * @brief The number of age bins.
+   */
+  SharedInt n_ages = 0; //AJ: should this be set to 0 (as in rcpp_population.hpp, or not?)
+  // /**
+  // * @brief Vector of ages.
+  // */
+  //RealVector ages; //AJ: placeholder for reading in ages for calculation of min_age
+  // /**
+  // * @brief Minimum observed age
+  // */
+  //SharedInt min_age = 0; //AJ: placeholder for calculating minimum age
   /**
    * @brief Age-specific selectivity parameter values.
    */
-  ParameterVector sel_at_age;
+  ParameterVector logit_sel_at_age;
 
   /**
    * @brief The constructor.
@@ -629,13 +641,16 @@ class SelectivityatAgeInterface : public SelectivityInterfaceBase {
   }
 
   /**
-   * @brief Construct a new Logistic Selectivity Interface object
+   * @brief Construct a new Selectivity-at-age Interface object
    *
    * @param other
    */
-  SelectivityatAgeInterface(const LogisticSelectivityInterface &other)
+  SelectivityatAgeInterface(const SelectivityatAgeInterface &other)
       : SelectivityInterfaceBase(other),
-        sel_at_age(other.sel_at_age) {}
+        n_ages(other.n_ages),
+        //ages(other.ages), // AJ placeholder
+        //min_age(other.min_age), // AJ placeholder
+        logit_sel_at_age(other.logit_sel_at_age) {}
 
   /**
    * @brief The destructor.
@@ -649,16 +664,16 @@ class SelectivityatAgeInterface : public SelectivityInterfaceBase {
   virtual uint32_t get_id() { return this->id; }
 
   /**
-   * @brief Evaluate selectivity using ???.
+   * @brief Evaluate selectivity using fims_math::inv_logit.
    * @param x The independent variable in the logistic function (e.g., age or
    * size in selectivity).
    */
-  virtual double evaluate(double x) { // AJ: I'm not sure if we want to evaluate at age x
-          // AJ: Is there a better way to just inv_logit transform the vector of values before passing them on to TMB?
-          // AJ: Do we need a dedicated sel_at_age.hpp
+  virtual double evaluate(double x) { 
     fims_popdy::SelectivityatAge<double> SelatAge;
-    SelatAge.sel_at_age = this->sel_at_age.initial_value_m; // AJ: I think this should read in initial values for SelectivityatAge
-    return SelatAge.evaluate(x); // AJ: again, I'm not sure if we want to evaluate at age x
+    SelatAge.n_ages = this->n_ages.get(); // AJ: is it necessary to call in n_ages here?
+    //SelatAge.min_age = std::min(ages); //AJ: placeholder for calculating the minimum age
+    SelatAge.logit_sel_at_age = this->logit_sel_at_age.initial_value_m; 
+    return SelatAge.evaluate(x); 
   }
 
   /**
@@ -690,13 +705,12 @@ class SelectivityatAgeInterface : public SelectivityInterfaceBase {
       std::shared_ptr<fims_popdy::SelectivityatAge<double>> sel =
           std::dynamic_pointer_cast<fims_popdy::SelectivityatAge<double>>(
               it->second);
-      // AJ: remove calls to old parameters, add in logit_sel_at_age (find+replace)
-      for (size_t i = 0; i < inflection_point.size(); i++) {
-        if (this->inflection_point[i].estimation_type_m.get() == "constant") {
-          this->inflection_point[i].final_value_m =
-              this->inflection_point[i].initial_value_m;
+      for (size_t i = 0; i < logit_sel_at_age.size(); i++) {
+        if (this->logit_sel_at_age[i].estimation_type_m.get() == "constant") {
+          this->logit_sel_at_age[i].final_value_m =
+              this->logit_sel_at_age[i].initial_value_m;
         } else {
-          this->inflection_point[i].final_value_m = sel->inflection_point[i];
+          this->logit_sel_at_age[i].final_value_m = sel->logit_sel_at_age[i];
         }
       }
     }
@@ -705,7 +719,7 @@ class SelectivityatAgeInterface : public SelectivityInterfaceBase {
   /**
    * @brief Converts the data to json representation for the output.
    * @return A string is returned specifying that the module relates to the
-   * selectivity interface with logistic selectivity. It also returns the ID
+   * selectivity interface with selectivity-at-age. It also returns the ID
    * and the parameters. This string is formatted for a json file.
    */
   virtual std::string to_json() {
@@ -713,18 +727,18 @@ class SelectivityatAgeInterface : public SelectivityInterfaceBase {
 
     ss << "{\n";
     ss << " \"module_name\":\"Selectivity\",\n";
-    ss << " \"module_type\": \"Logistic\",\n";
+    ss << " \"module_type\": \"SelectivityatAge\",\n";
     ss << " \"module_id\": " << this->id << ",\n";
 
-    // Find and replace inflection_point with logit_sel_at_age
     ss << " \"parameters\": [\n{\n";
-    ss << "   \"name\": \"inflection_point\",\n";
-    ss << "   \"id\":" << this->inflection_point.id_m << ",\n";
+    ss << "   \"name\": \"logit_sel_at_age\",\n";
+    ss << "   \"id\":" << this->logit_sel_at_age.id_m << ",\n";
     ss << "   \"type\": \"vector\",\n";
     ss << " \"dimensionality\": {\n";
     ss << "  \"header\": [null],\n";
-    ss << "  \"dimensions\": [1]\n},\n"; //AJ: need to update dimensions n_age somehow
-    ss << "   \"values\":" << this->inflection_point << "},\n ";
+    // ss << "  \"dimensions\": [1]\n},\n"; //AJ: replaced this line with the lines below
+    ss << "  \"dimensions\":" << this->n_ages.get() << "},\n"; //AJ: do I need the .get() call?
+    ss << "   \"values\":" << this->logit_sel_at_age << "},\n ";
 
     ss << "}";
 
@@ -738,55 +752,36 @@ class SelectivityatAgeInterface : public SelectivityInterfaceBase {
     std::shared_ptr<fims_info::Information<Type>> info =
         fims_info::Information<Type>::GetInstance();
 
-    std::shared_ptr<fims_popdy::LogisticSelectivity<Type>> selectivity =
-        std::make_shared<fims_popdy::LogisticSelectivity<Type>>();
+    std::shared_ptr<fims_popdy::SelectivityatAge<Type>> selectivity =
+        std::make_shared<fims_popdy::SelectivityatAge<Type>>();
     std::stringstream ss;
     // set relative info
     selectivity->id = this->id;
-    //add n_ages
-    //AJ: find-and-replace, remove other parameter
-    selectivity->inflection_point.resize(this->inflection_point.size());
-
-    for (size_t i = 0; i < this->inflection_point.size(); i++) {
-      selectivity->inflection_point[i] =
-          this->inflection_point[i].initial_value_m;
-      if (this->inflection_point[i].estimation_type_m.get() ==
+    selectivity->n_ages = this->n_ages.get();
+    //selectivity->min_age = std::min(ages); // AJ: placeholder
+    selectivity->logit_sel_at_age.resize(this->logit_sel_at_age.size());
+    for (size_t i = 0; i < this->logit_sel_at_age.size(); i++) {
+      selectivity->logit_sel_at_age[i] =
+          this->logit_sel_at_age[i].initial_value_m;
+      if (this->logit_sel_at_age[i].estimation_type_m.get() ==
           "fixed_effects") {
         ss.str("");
-        ss << "Selectivity." << this->id << ".inflection_point."
-           << this->inflection_point[i].id_m;
+        ss << "Selectivity." << this->id << ".logit_sel_at_age."
+           << this->logit_sel_at_age[i].id_m;
         info->RegisterParameterName(ss.str());
-        info->RegisterParameter(selectivity->inflection_point[i]);
+        info->RegisterParameter(selectivity->logit_sel_at_age[i]);
       }
-      if (this->inflection_point[i].estimation_type_m.get() ==
+      if (this->logit_sel_at_age[i].estimation_type_m.get() ==
           "random_effects") {
         ss.str("");
-        ss << "Selectivity." << this->id << ".inflection_point."
-           << this->inflection_point[i].id_m;
-        info->RegisterRandomEffect(selectivity->inflection_point[i]);
+        ss << "Selectivity." << this->id << ".logit_sel_at_age."
+           << this->logit_sel_at_age[i].id_m;
+        info->RegisterRandomEffect(selectivity->logit_sel_at_age[i]);
         info->RegisterRandomEffectName(ss.str());
       }
     }
-    info->variable_map[this->inflection_point.id_m] =
-        &(selectivity)->inflection_point;
-
-    selectivity->slope.resize(this->slope.size());
-    for (size_t i = 0; i < this->slope.size(); i++) {
-      selectivity->slope[i] = this->slope[i].initial_value_m;
-      if (this->slope[i].estimation_type_m.get() == "fixed_effects") {
-        ss.str("");
-        ss << "Selectivity." << this->id << ".slope." << this->slope[i].id_m;
-        info->RegisterParameterName(ss.str());
-        info->RegisterParameter(selectivity->slope[i]);
-      }
-      if (this->slope[i].estimation_type_m.get() == "random_effects") {
-        ss.str("");
-        ss << "Selectivity." << this->id << ".slope." << this->slope[i].id_m;
-        info->RegisterRandomEffectName(ss.str());
-        info->RegisterRandomEffect(selectivity->slope[i]);
-      }
-    }
-    info->variable_map[this->slope.id_m] = &(selectivity)->slope;
+    info->variable_map[this->logit_sel_at_age.id_m] =
+        &(selectivity)->logit_sel_at_age;
 
     // add to Information
     info->selectivity_models[selectivity->id] = selectivity;

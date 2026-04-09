@@ -16,55 +16,58 @@
 namespace fims_popdy {
 
 /**
- *  @brief SelectivityatAge class that returns the logistic function value
+ *  @brief SelectivityatAge class that returns the inverse logit function value
  * from fims_math.
  *
- * The logistic selectivity function can produce either an ascending or
- * descending curve based on the sign of the slope parameter. A positive slope
- * creates an ascending logistic curve (selectivity increases from 0 to 1 with
- * increasing x), while a negative slope creates a descending logistic curve
- * (selectivity decreases from 1 to 0 with increasing x).
+ * Selectivity-at-age allows users to estimate age-specific selectivity values,
+ * with great inherent flexibility. The number of parameters (either estimated
+ * or fixed) is equal to the number of ages. Users are recommended to fix selectivity
+ * for at least one age to a value equal or close to 1.
  */
 template <typename Type>
 struct SelectivityatAge : public SelectivityBase<Type> {
   fims::Vector<Type>
-      logit_sel_at_age;     // update definition
+      logit_sel_at_age;     
+  size_t n_ages; // AJ: is this the best way to provide n_ages?
+  //size_t min_age; // AJ: need to create/pass this value / correct specification?
 
-  LogisticSelectivity() : SelectivityBase<Type>() {}
+  SelectivityatAge() : SelectivityBase<Type>() {}
 
-  virtual ~LogisticSelectivity() {}
+  virtual ~SelectivityatAge() {}
 
   /**
-   * @brief Method of the logistic selectivity class that implements the
-   * logistic function from FIMS math.
+   * @brief Method of the selectivity-at-age class that implements the
+   * inverse logit function from FIMS math to properly transform parameter
+   * values.
    *
-   * \f[ \frac{1.0}{ 1.0 + exp(-1.0 * slope (x - inflection\_point))} \f]
+   * a + (b - a) / (static_cast<Type>(1.0) + fims_math::exp(-logit_x))
    *
-   * The selectivity curve can be either ascending or descending depending on
-   * the sign of the slope parameter:
-   * - Positive slope: ascending curve (selectivity increases from 0 to 1)
-   * - Negative slope: descending curve (selectivity decreases from 1 to 0)
    *
-   * @param x  The independent variable in the logistic function (e.g., age or
-   * size in selectivity).
+   * @param x  The independent variable in the selectivity-at-age function 
+   * (e.g., age).
    */
   virtual const Type evaluate(const Type &x) {
-    //return fims_math::inv_logit<Type>(logit_sel_at_age[x]); // AJ: figure out default rules for x (always starts at 1? guaranteed to run through all n_ages)
-      //AJ: we can add conditionals in case x
+    Type a = static_cast<Type>(0.0);
+    Type b = static_cast<Type>(1.0);
+    return fims_math::inv_logit<Type>(a, b, this->logit_sel_at_age[x]); // AJ: figure out default rules for x (always starts at 1? guaranteed to run through all n_ages)
+      //AJ: we can add conditionals in case x doesn't start at age-0
+        //AJ: is x obtained by calling get_ages(data) or something similar?
+        //AJ: how can we obtain the minimum of possible x's, to scale x vector to start at zero
       //AJ: run past Kelli/Nathan/Ian
-    return fims_math::logistic<Type>(inflection_point[0], slope[0], x);
   }
 
   /**
-   * @copydoc LogisticSelectivity::evaluate(const Type &x)
+   * @copydoc SelectivityatAge::evaluate(const Type &x)
    * @param pos Position index, e.g., which year.
    */
   virtual const Type evaluate(const Type &x, size_t pos) {
     //formula for i_age_year
-    size_t i_age_year = pos * this->n_ages + x; // might need adjustment if x starts at 1
-    //return fims_math::inv_logit<Type>(logit_sel_at_age[i_age_year]);
-    return fims_math::logistic<Type>(inflection_point.get_force_scalar(pos),
-                                     slope.get_force_scalar(pos), x);
+    size_t i_age_year = pos * this->n_ages + x; // might need adjustment if x starts at 1 // EML: Is x just an additional time-varying "offset" to mean selectivity at age estimates?
+    // size_t i_age_year = pos * this->n_ages + x - this->min_age;
+    // does pos always start at 0, so that we apply the index correctly
+    Type a = static_cast<Type>(0.0);
+    Type b = static_cast<Type>(1.0);
+    return fims_math::inv_logit<Type>(a, b, this->logit_sel_at_age[i_age_year]);
   }
 };
 

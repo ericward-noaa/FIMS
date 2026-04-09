@@ -361,7 +361,7 @@ create_default_SelectivityatAge <- function(
       age = get_ages(data),
       # default selectivity_at_age based on what would be defaults from logistic 
       # curve with inflection point 2 and slope 1:
-      value = logit(1/(1+exp(get_ages(data)-2))),
+      value = qlogis(1/(1+(exp(-1*(get_ages(data)-2)))))
       estimation_type = "fixed_effects"
     )
 }

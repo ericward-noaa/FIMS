@@ -377,7 +377,10 @@ RCPP_MODULE(fims) {
       "https://noaa-fims.github.io/doxygen/"
       "classSelectivityatAgeInterfaceInterface.html.")
       .constructor()
-      .field("sel_at_age", &SelectivityatAgeInterface::sel_at_age)
+      .field("n_ages", &SelectivityatAgeInterface::n_ages)
+      //.field("ages", &SelectivityatAgeInterface::ages, "Ages for each age class.") // AJ: placeholder
+      //.field("min_age", &SelectivityatAgeInterface::min_age, "Minimum observed age") // AJ: placeholder
+      .field("logit_sel_at_age", &SelectivityatAgeInterface::logit_sel_at_age)
       .method("get_id", &SelectivityatAgeInterface::get_id)
       .method("evaluate", &SelectivityatAgeInterface::evaluate);
 
