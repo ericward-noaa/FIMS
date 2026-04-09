@@ -17,6 +17,7 @@ template<class Type>
 Type objective_function<Type>::operator()() {
 
 
+
     PARAMETER_VECTOR(p);
     PARAMETER_VECTOR(re);
 
