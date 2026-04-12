@@ -55,6 +55,7 @@ CMakeOutput
 COLORSTYLE
 CPUE
 CTest
+CURR
 CXX
 CXXFLAGS
 CYGWIN
@@ -180,6 +181,7 @@ FBCA
 FIXME
 FMort
 FUNC
+GGC
 FetchContent
 FileName
 FiltersEntriesBySeverity
@@ -415,6 +417,7 @@ RunModelLoop
 SBPR
 SDreports
 SEXP
+SHA
 SIG
 SIGABRT
 SIGFPE
@@ -429,6 +432,7 @@ SSBy
 STR
 STYLESHEET
 SUBPOPULATION
+SZ
 SelectivityBase
 SelectivityIDs
 SelectivityInterfaceBase
@@ -475,12 +479,14 @@ Stroustrup
 Subpopulation
 subvector
 Sys
+sys
 TESTDOWN
 TLDR
 TMB
 TMB's
 TMBVector
 TMBad
+TMPL
 TOC
 TOMLINSON
 TREEVIEW
@@ -533,6 +539,7 @@ amigaos
 anyNA
 api
 arg
+argjson
 args
 asSEXP
 asc
@@ -541,6 +548,8 @@ assignees
 atan
 attr
 aug
+awk
+backtrace
 bca
 bcast
 bd
@@ -560,6 +569,7 @@ cb
 cbind
 cctype
 cd
+dT
 cdf
 cdot
 cerr
@@ -687,6 +697,7 @@ doxygen
 dplyr
 dq
 dropdown
+du
 dum
 dynam
 eac
@@ -740,6 +751,8 @@ fromJSON
 fromR
 fromRVector
 fsel
+ftemplate
+ftime
 fstream
 func
 functors
@@ -832,6 +845,7 @@ jsonlite
 jt
 kable
 kaskr
+kbytes
 kelli
 kellijohnson
 kmax
@@ -845,6 +859,7 @@ ldots
 len
 lengthcomp
 lgamma
+lh
 libcurl
 libPaths
 libname
@@ -882,6 +897,7 @@ maxF
 maxgc
 maxgrad
 maxit
+mb
 md
 meanlog
 messageBody
@@ -956,6 +972,7 @@ num
 nx
 nyr
 oE
+oP
 objs
 ofstream
 ogive
@@ -1007,6 +1024,7 @@ precompiled
 preconnect
 preprocessor
 prev
+printf
 probs
 processR
 processmodule
@@ -1032,6 +1050,7 @@ rdrr
 rds
 readLines
 readRDS
+readlines
 rebasing
 reccommend
 recr
@@ -1112,6 +1131,7 @@ sfLapply
 sfLibrary
 sfStop
 sgi
+sha
 showClass
 showWarnings
 sig
@@ -1228,6 +1248,7 @@ updateComment
 useDynLib
 useDynamicSymbols
 usethis
+usr
 valarray
 validator
 validators
@@ -1249,6 +1270,7 @@ wordlist
 writeLines
 www
 xData
+xargs
 xlab
 xlen
 xlength

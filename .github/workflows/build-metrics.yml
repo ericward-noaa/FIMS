@@ -87,7 +87,7 @@ jobs:
           [ "$TEMPLATE" = "0.00" ] && TEMPLATE="null"
 
           # binary sizes as a JSON object, parsed from build.log
-          BINARY_JSON=$(python3 -c "
+          BINARY_JSON=$(python3 <<EOF
           import re, json
 
           with open('build.log') as f:
@@ -101,7 +101,8 @@ jobs:
                             result[parts[-1].split('/')[-1]] = parts[4]
 
           print(json.dumps(result))
-      ")
+          EOF
+          )
 
           COMMIT="${GITHUB_SHA:-unknown}"
           TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
