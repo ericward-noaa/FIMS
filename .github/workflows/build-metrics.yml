@@ -13,10 +13,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
-
       - name: Install Ninja
         run: sudo apt-get install ninja-build
-
+        
       - name: Install time
         run: sudo apt-get install -y time
 
@@ -89,20 +88,20 @@ jobs:
 
           # binary sizes as a JSON object, parsed from build.log
           BINARY_JSON=$(python3 -c "
-import re, json
+          import re, json
 
-with open('build.log') as f:
-    lines = f.readlines()
+          with open('build.log') as f:
+                  lines = f.readlines()
 
-result = {}
-for line in lines:
-    if re.search(r'\.(so|a)$', line.strip()):
-        parts = line.split()
-        if len(parts) >= 9:
-            result[parts[-1].split('/')[-1]] = parts[4]
+          result = {}
+          for line in lines:
+                  if re.search(r'\.(so|a)$', line.strip()):
+                      parts = line.split()
+                      if len(parts) >= 9:
+                            result[parts[-1].split('/')[-1]] = parts[4]
 
-print(json.dumps(result))
-")
+          print(json.dumps(result))
+      ")
 
           COMMIT="${GITHUB_SHA:-unknown}"
           TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
@@ -183,7 +182,7 @@ print(json.dumps(result))
 
               echo ""
 
-              # regression checks, 15 percent threshold for time and RAM
+              # regression checks, 15% threshold for time and RAM
               REGRESSIONS=""
 
               if [ "$CURR_WARN" -gt "$PREV_WARN" ] 2>/dev/null; then
@@ -206,7 +205,7 @@ print(json.dumps(result))
                 RAM_REGRESSED=$(awk "BEGIN {print (($CURR_RAM - $PREV_RAM) / $PREV_RAM * 100) > 15 ? 1 : 0}")
                 if [ "$RAM_REGRESSED" = "1" ]; then
                   RAM_PCT=$(awk "BEGIN {printf \"%.1f\", (($CURR_RAM - $PREV_RAM) / $PREV_RAM) * 100}")
-                  REGRESSIONS="${REGRESSIONS}WARNING: peak RAM increased by ${RAM_PCT}% (threshold: 15%)\n"
+                  REGRESSIONS="${REGRESSIONS}WARNING: peak RAM increased by ${RAM_PCT}% (threshold: 15 percent)\n"
                 fi
               fi
 
