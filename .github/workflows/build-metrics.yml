@@ -43,9 +43,8 @@ jobs:
       - name: Configure
         run: cmake -S . -B build -DBUILD_DOC=OFF -G Ninja -DCMAKE_CXX_FLAGS="--coverage -ftime-report -ftemplate-backtrace-limit=0"
 
-      # NOTE: /usr/bin/time -v is specific to Linux
-      # When running locally on Windows, the -v flag should be removed
-
+      # /usr/bin/time -v is Linux only
+      # on macOS use /usr/bin/time -l, on Windows remove the prefix entirely
       - name: Build and capture metrics
         run: /usr/bin/time -v cmake --build build --parallel 16 2>&1 | tee build.log
 
@@ -58,20 +57,180 @@ jobs:
 
       - name: Parse metrics
         run: |
-          source("R/build_metrics.R")
-          parse_build_metrics()
-        shell: Rscript {0}
+          # wall clock time, converts m:ss or h:mm:ss to seconds
+          RAW_TIME=$(grep "Elapsed (wall clock) time" build.log | grep -oP '[\d:]+\.?\d*$' || echo "")
+          if [ -n "$RAW_TIME" ]; then
+            WALL=$(echo "$RAW_TIME" | awk -F: '{
+              if (NF == 3) print ($1*3600 + $2*60 + $3)
+              else if (NF == 2) print ($1*60 + $2)
+              else print $1
+            }')
+            WALL=$(printf "%.2f" "$WALL")
+          else
+            WALL="null"
+          fi
+
+          # peak RAM, kbytes to MB
+          RAW_RAM=$(grep "Maximum resident set size" build.log | grep -oP '\d+$' || echo "")
+          if [ -n "$RAW_RAM" ]; then
+            RAM=$(echo "$RAW_RAM" | awk '{printf "%.2f", $1/1024}')
+          else
+            RAM="null"
+          fi
+
+          # warning and error counts
+          WARNINGS=$(grep -c "warning:" build.log || true)
+          ERRORS=$(grep -v "[0-9]* error(s)* generated" build.log | grep -c "error:" || true)
+
+          # template instantiation time, summing the wall column from all TOTAL lines
+          # TOTAL line columns: 1=TOTAL 2=: 3=usr 4=sys 5=wall 6=GGC
+          TEMPLATE=$(awk '/^ *TOTAL *:/ {sum += $5} END {printf "%.2f", sum}' build.log)
+          [ "$TEMPLATE" = "0.00" ] && TEMPLATE="null"
+
+          # binary sizes as a JSON object, parsed from build.log
+          BINARY_JSON=$(python3 -c "
+import re, json
+
+with open('build.log') as f:
+    lines = f.readlines()
+
+result = {}
+for line in lines:
+    if re.search(r'\.(so|a)$', line.strip()):
+        parts = line.split()
+        if len(parts) >= 9:
+            result[parts[-1].split('/')[-1]] = parts[4]
+
+print(json.dumps(result))
+")
+
+          COMMIT="${GITHUB_SHA:-unknown}"
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+          jq -n \
+            --arg commit "$COMMIT" \
+            --arg ts "$TIMESTAMP" \
+            --argjson wall "$WALL" \
+            --argjson ram "$RAM" \
+            --argjson warnings "$WARNINGS" \
+            --argjson errors "$ERRORS" \
+            --argjson template "$TEMPLATE" \
+            --argjson binary "$BINARY_JSON" \
+            '{
+              commit_sha: $commit,
+              timestamp: $ts,
+              wall_clock_time_sec: $wall,
+              peak_ram_mb: $ram,
+              warning_count: $warnings,
+              error_count: $errors,
+              template_time_sec: $template,
+              binary_sizes: $binary
+            }' > metrics.json
+
+          echo "metrics.json written:"
+          cat metrics.json
 
       - name: Compare against previous metrics
         run: |
-          source("R/build_metrics.R")
-          compare_build_metrics()
-        shell: Rscript {0}
+          REGRESSION=0
+
+          if [ ! -f previous_metrics.json ]; then
+            echo "No previous metrics found. This is the first run." > metrics_comparison.log
+          else
+            PREV_COMMIT=$(jq -r '.commit_sha' previous_metrics.json)
+            CURR_COMMIT=$(jq -r '.commit_sha' metrics.json)
+            PREV_WALL=$(jq -r '.wall_clock_time_sec // "null"' previous_metrics.json)
+            CURR_WALL=$(jq -r '.wall_clock_time_sec // "null"' metrics.json)
+            PREV_RAM=$(jq -r '.peak_ram_mb // "null"' previous_metrics.json)
+            CURR_RAM=$(jq -r '.peak_ram_mb // "null"' metrics.json)
+            PREV_WARN=$(jq -r '.warning_count' previous_metrics.json)
+            CURR_WARN=$(jq -r '.warning_count' metrics.json)
+            PREV_ERR=$(jq -r '.error_count' previous_metrics.json)
+            CURR_ERR=$(jq -r '.error_count' metrics.json)
+            PREV_TMPL=$(jq -r '.template_time_sec // "null"' previous_metrics.json)
+            CURR_TMPL=$(jq -r '.template_time_sec // "null"' metrics.json)
+
+            {
+              echo "BUILD METRICS COMPARISON:"
+              echo ""
+              echo "Previous commit: $PREV_COMMIT"
+              echo "Current commit: $CURR_COMMIT"
+              echo ""
+
+              if [ "$PREV_WALL" != "null" ] && [ "$CURR_WALL" != "null" ]; then
+                WALL_PCT=$(awk "BEGIN {printf \"%.1f\", (($CURR_WALL - $PREV_WALL) / $PREV_WALL) * 100}")
+                echo "Wall clock time: ${CURR_WALL}s (was ${PREV_WALL}s, ${WALL_PCT}%)"
+              else
+                echo "Wall clock time: ${CURR_WALL}s (no previous data)"
+              fi
+
+              if [ "$PREV_RAM" != "null" ] && [ "$CURR_RAM" != "null" ]; then
+                RAM_PCT=$(awk "BEGIN {printf \"%.1f\", (($CURR_RAM - $PREV_RAM) / $PREV_RAM) * 100}")
+                echo "Peak RAM: ${CURR_RAM}MB (was ${PREV_RAM}MB, ${RAM_PCT}%)"
+              else
+                echo "Peak RAM: ${CURR_RAM}MB (no previous data)"
+              fi
+
+              echo "Warnings: $CURR_WARN (was $PREV_WARN)"
+              echo "Errors: $CURR_ERR (was $PREV_ERR)"
+
+              if [ "$PREV_TMPL" != "null" ] && [ "$CURR_TMPL" != "null" ]; then
+                TMPL_PCT=$(awk "BEGIN {printf \"%.1f\", (($CURR_TMPL - $PREV_TMPL) / $PREV_TMPL) * 100}")
+                echo "Template time: ${CURR_TMPL}s (was ${PREV_TMPL}s, ${TMPL_PCT}%)"
+              else
+                echo "Template time: ${CURR_TMPL}s (no previous data)"
+              fi
+
+              echo ""
+
+              # regression checks, 15 percent threshold for time and RAM
+              REGRESSIONS=""
+
+              if [ "$CURR_WARN" -gt "$PREV_WARN" ] 2>/dev/null; then
+                REGRESSIONS="${REGRESSIONS}WARNING: warning count increased from $PREV_WARN to $CURR_WARN\n"
+              fi
+
+              if [ "$CURR_ERR" -gt "$PREV_ERR" ] 2>/dev/null; then
+                REGRESSIONS="${REGRESSIONS}WARNING: error count increased from $PREV_ERR to $CURR_ERR\n"
+              fi
+
+              if [ "$PREV_WALL" != "null" ] && [ "$CURR_WALL" != "null" ]; then
+                WALL_REGRESSED=$(awk "BEGIN {print (($CURR_WALL - $PREV_WALL) / $PREV_WALL * 100) > 15 ? 1 : 0}")
+                if [ "$WALL_REGRESSED" = "1" ]; then
+                  WALL_PCT=$(awk "BEGIN {printf \"%.1f\", (($CURR_WALL - $PREV_WALL) / $PREV_WALL) * 100}")
+                  REGRESSIONS="${REGRESSIONS}WARNING: compile time increased by ${WALL_PCT}% (threshold: 15%)\n"
+                fi
+              fi
+
+              if [ "$PREV_RAM" != "null" ] && [ "$CURR_RAM" != "null" ]; then
+                RAM_REGRESSED=$(awk "BEGIN {print (($CURR_RAM - $PREV_RAM) / $PREV_RAM * 100) > 15 ? 1 : 0}")
+                if [ "$RAM_REGRESSED" = "1" ]; then
+                  RAM_PCT=$(awk "BEGIN {printf \"%.1f\", (($CURR_RAM - $PREV_RAM) / $PREV_RAM) * 100}")
+                  REGRESSIONS="${REGRESSIONS}WARNING: peak RAM increased by ${RAM_PCT}% (threshold: 15%)\n"
+                fi
+              fi
+
+              if [ -n "$REGRESSIONS" ]; then
+                echo "REGRESSIONS DETECTED:"
+                printf "$REGRESSIONS"
+              else
+                echo "No regressions detected."
+              fi
+
+            } > metrics_comparison.log
+
+            if [ -n "$REGRESSIONS" ]; then
+              REGRESSION=1
+            fi
+          fi
+
+          cat metrics_comparison.log
+          echo "REGRESSION=$REGRESSION" >> $GITHUB_ENV
 
       - name: Fail on regression
         run: |
-          if grep -q "REGRESSIONS DETECTED" metrics_comparison.log; then
-            echo "Build regression detected"
+          if [ "$REGRESSION" = "1" ]; then
+            echo "Build regression detected. See metrics_comparison.log for details."
             exit 1
           fi
 
@@ -94,5 +253,5 @@ jobs:
       - name: Print metrics summary
         run: |
           cat metrics.json
-          echo "           "
+          echo ""
           cat metrics_comparison.log
