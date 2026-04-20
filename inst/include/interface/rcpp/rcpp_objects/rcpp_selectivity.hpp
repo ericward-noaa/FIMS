@@ -671,7 +671,7 @@ class SelectivityatAgeInterface : public SelectivityInterfaceBase {
   virtual double evaluate(double x) { 
     fims_popdy::SelectivityatAge<double> SelatAge;
     SelatAge.n_ages = this->n_ages.get(); // AJ: is it necessary to call in n_ages here?
-    //SelatAge.min_age = std::min(ages); //AJ: placeholder for calculating the minimum age
+    //SelatAge.min_age = std::min(this->ages); //AJ: placeholder for calculating the minimum age
     SelatAge.logit_sel_at_age = this->logit_sel_at_age.initial_value_m; 
     return SelatAge.evaluate(x); 
   }
