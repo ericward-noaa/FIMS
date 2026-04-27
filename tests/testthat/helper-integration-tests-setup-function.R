@@ -749,6 +749,14 @@ setup_and_run_surplus_production_model <-
       carrying_capacity_Prior$uncertainty[1]$value <- log(carrying_capacity_prior[2])
       carrying_capacity_Prior$set_distribution_links("prior", production$carrying_capacity_input$get_id())
 
+      
+      sigma2obs_Prior <- new(DinvgammaDistribution)
+      sigma2obs_Prior$log_shape[1]$value <- log(1.708603)
+      sigma2obs_Prior$log_scale[1]$value <- log(1/0.008613854)
+      sigma2obs_Prior$set_distribution_links( "prior", 
+          survey_fleet_index_distribution$uncertainty$get_id())
+
+
       # create production distribution module
       production_distribution <- new(DlnormDistribution)
       production_distribution$uncertainty$set_transformation("identity")
@@ -761,6 +769,12 @@ setup_and_run_surplus_production_model <-
         "random_effects",
         c(production$depletion_input$get_id(), production$log_expected_depletion$get_id())
       )
+
+      sigma2depletion_Prior <- new(DinvgammaDistribution)
+      sigma2depletion_Prior$log_shape[1]$value <- log(3.785518)
+      sigma2depletion_Prior$log_scale[1]$value <- log(1/0.010223)
+      sigma2depletion_Prior$set_distribution_links( "prior", 
+        production_distribution$uncertainty$get_id())
 
     }
   } else {

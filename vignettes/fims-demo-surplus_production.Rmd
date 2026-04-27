@@ -47,8 +47,8 @@ A sample data frame for a surplus production model is stored in the package as `
 # Setup initial values and priors for the surplus production model parameters
 # Values from Meyer and Millar 1999, Table 1, with lognormal priors on K and r
 data("data_limited_tuna")
-carrying_capacity_prior <- c(5.042905, sqrt(3.7603664))
-growth_rate_prior <- c(-1.38, sqrt(3.845))
+carrying_capacity_prior <- c(5.042905, 1/sqrt(3.7603664))
+growth_rate_prior <- c(-1.38, 1/sqrt(3.845))
 
 inits <- list(depletion=c(0.99,0.98,0.96,0.94,0.92,0.90,0.88,0.86,0.84,0.82,
     0.80,0.78,0.76,0.74,0.72,0.70,0.68,0.66,0.64,0.62,0.60,0.58,0.56, 0.56),
@@ -148,25 +148,29 @@ Surplus Production models rely on a depletion module that caotures the depletion
 production <- new(PTDepletion)
 
 # Set initial values and attributes
-production$growth_rate[1]$value <- inits$growth_rate
-production$growth_rate[1]$min <- 0
-production$growth_rate[1]$estimation_type$set("fixed_effects")
-production$carrying_capacity[1]$value <- inits$carrying_capacity
-production$carrying_capacity[1]$min <- 0
-production$carrying_capacity[1]$estimation_type$set("fixed_effects")
+production$growth_rate_input[1]$value <- inits$growth_rate
+production$growth_rate_input[1]$min <- 0
+production$growth_rate_input[1]$estimation_type$set("fixed_effects")
+production$growth_rate_input$set_transformation("identity")
+production$carrying_capacity_input[1]$value <- inits$carrying_capacity
+production$carrying_capacity_input[1]$min <- 0
+production$carrying_capacity_input[1]$estimation_type$set("fixed_effects")
+production$carrying_capacity_input$set_transformation("identity")
+
 
 # Fix to get Schaefer model (parameters are constant by default)
-production$log_shape[1]$value <- log(2)
+production$shape_input[1]$value <- log(2)
 
-production$log_init_depletion[1]$value <- 0 # inital depletion ~ 1
+production$init_depletion_input[1]$value <- 0 # inital depletion ~ 1
 
 # Set-up the depletion random effect parameter 
-production$depletion$resize(nyears+1)
+production$depletion_input$resize(nyears+1)
 for (i in 1:(nyears+1)) {
-    production$depletion[i]$value <- inits$depletion[i]
-    production$depletion[i]$min <- 0
+    production$depletion_input[i]$value <- inits$depletion[i]
+    production$depletion_input[i]$min <- 0
 }
-production$depletion$set_all_random(TRUE)
+production$depletion_input$set_all_random(TRUE)
+production$depletion_input$set_transformation("identity")
 production$n_years$set(nyears)
 ```
 
@@ -185,7 +189,7 @@ production_distribution$uncertainty[1]$estimation_type$set("fixed_effects")
 # depletion ~ LNormal(log_expected_depletion, sd)
 production_distribution$set_distribution_links(
     "random_effects",
-    c(production$depletion$get_id(), production$log_expected_depletion$get_id())
+    c(production$depletion_input$get_id(), production$log_expected_depletion$get_id())
 )
 ```
 
@@ -208,7 +212,20 @@ carrying_capacity_Prior$uncertainty$set_transformation("identity")
 carrying_capacity_Prior$uncertainty$set_uncertainty_name("sd")
 carrying_capacity_Prior$uncertainty[1]$value <- carrying_capacity_prior[2]
 carrying_capacity_Prior$set_distribution_links("prior",         
-    production$carrying_capacity$get_id())
+    production$carrying_capacity_input$get_id())
+
+sigma2obs_Prior <- new(DinvgammaDistribution)
+sigma2obs_Prior$log_shape[1]$value <- log(1.708603)
+sigma2obs_Prior$log_scale[1]$value <- log(1/0.008613854)
+sigma2obs_Prior$set_distribution_links( "prior", 
+    survey_fleet_index_distribution$uncertainty$get_id())
+
+sigma2depletion_Prior <- new(DinvgammaDistribution)
+sigma2depletion_Prior$log_shape[1]$value <- log(3.785518)
+sigma2depletion_Prior$log_scale[1]$value <- log(1/0.010223)
+sigma2depletion_Prior$set_distribution_links( "prior", 
+    production_distribution$uncertainty$get_id())
+
 ```
   
 ## Population and Model
@@ -260,33 +277,43 @@ obj <- TMB::MakeADFun(
 
 ## Optimization or MCMC
 
-After the TMB object is created, `obj` can be passed either to `nlminb()` or `SparseNUTS::sample_nuts()`. This model set-up to be run as a Bayesian model so the demo will highlight how to pass this into `SparseNUTS::sample_nuts()`. The `growth_rate` and `carrying_capacity` were set-up on the natural scale to avoid the need for Jacobian transformations, which are not available yet in FIMS. It is therefore neccessary to pass in a vector of parameter minimums (all set to 0) to prevent parameter sampling outside realistic ranges. The FIMS functions `get_parameter_min_vector()` and `get_random_effects_min_vector()` pull these values from the `min` parameter attribute. 
+After the TMB object is created, `obj` can be passed either to `nlminb()` or `SparseNUTS::sample_snuts()`. This model set-up to be run as a Bayesian model so the demo will highlight how to pass this into `SparseNUTS::sample_snuts()`. The `growth_rate` and `carrying_capacity` were set-up on the natural scale to avoid the need for Jacobian transformations, which are not available yet in FIMS. It is therefore neccessary to pass in a vector of parameter minimums (all set to 0) to prevent parameter sampling outside realistic ranges. The FIMS functions `get_parameter_min_vector()` and `get_random_effects_min_vector()` pull these values from the `min` parameter attribute. 
   
 ```{r fit-mcmc, eval = FALSE}
 
  # Fit MCMC using SparseNUTS
-  fit <- NULL
-  invisible(capture.output(
-    invisible(capture.output(
-       fit <<- SparseNUTS::sample_snuts(
-        obj,
-        num_samples = 8000,
-        chains = 1,
-        metric = "stan",
-        print = FALSE,
-        refresh = 0,
-        quiet = TRUE,
-        lower = c(FIMS:::get_parameter_min_vector(), 
-            FIMS:::get_random_effects_min_vector()), 
-        upper = c(FIMS:::get_parameter_max_vector(), 
-            FIMS:::get_random_effects_max_vector()), 
-        control = list(adapt_delta = 0.99),
-        skip_optimization = TRUE
-      ),
-      type = "message"
-    ))
-  ))
+ lower_bounds <- c(
+     FIMS:::get_parameter_min_vector(),
+     FIMS:::get_random_effects_min_vector()
+ )
+ upper_bounds <- c(
+     FIMS:::get_parameter_max_vector(),
+     FIMS:::get_random_effects_max_vector()
+ )
 
-  print(fit$mle$est)
+ fit <- SparseNUTS::sample_snuts(
+     obj,
+     num_samples = 30000,
+     num_warmup = 5000,
+     chains = 4,
+     cores = 4, 
+     metric = "stan",
+     print = TRUE,
+     refresh = 100,
+     lower = lower_bounds,
+     upper = upper_bounds,
+     iter = 35000,
+     control = list(adapt_delta = 0.99),
+     skip_optimization = FALSE
+ )
+
+ # SparseNUTS return structure can vary by version.
+ if (!is.null(fit[["mle"]]) && !is.null(fit[["mle"]][["est"]])) {
+     print(fit[["mle"]][["est"]])
+ } else if (!is.null(fit[["monitor"]]) && !is.null(fit[["monitor"]][["median"]])) {
+     print(fit[["monitor"]][["median"]])
+ } else {
+     print(names(fit))
+ }
 
 ```
