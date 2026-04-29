@@ -49,7 +49,8 @@ struct SelectivityatAge : public SelectivityBase<Type> {
   virtual const Type evaluate(const Type &x) {
     Type a = static_cast<Type>(0.0);
     Type b = static_cast<Type>(1.0);
-    return fims_math::inv_logit<Type>(a, b, this->logit_sel_at_age[x]); // AJ: figure out default rules for x (always starts at 1? guaranteed to run through all n_ages)
+    size_t i_age = x - min_age;
+    return fims_math::inv_logit<Type>(a, b, logit_sel_at_age[i_age]); // AJ: figure out default rules for x (always starts at 1? guaranteed to run through all n_ages)
       //AJ: we can add conditionals in case x doesn't start at age-0
         //AJ: is x obtained by calling get_ages(data) or something similar?
         //AJ: how can we obtain the minimum of possible x's, to scale x vector to start at zero
@@ -66,7 +67,7 @@ struct SelectivityatAge : public SelectivityBase<Type> {
     // does pos always start at 0, so that we apply the index correctly
     Type a = static_cast<Type>(0.0);
     Type b = static_cast<Type>(1.0);
-    size_t i_age_year = pos * this->n_ages + x - this->min_age;
+    size_t i_age_year = pos * n_ages + x - min_age;
     return fims_math::inv_logit<Type>(a, b, logit_sel_at_age.get_force_scalar_wrap(i_age_year)); 
 
     //size_t i_age_year = x - this->min_age;
