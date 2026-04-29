@@ -29,7 +29,7 @@ struct SelectivityatAge : public SelectivityBase<Type> {
   fims::Vector<Type>
       logit_sel_at_age;     
   size_t n_ages; // AJ: is this the best way to provide n_ages?
-  //size_t min_age; // AJ: need to create/pass this value / correct specification?
+  size_t min_age; // AJ: need to create/pass this value / correct specification?
 
   SelectivityatAge() : SelectivityBase<Type>() {}
 
@@ -63,13 +63,14 @@ struct SelectivityatAge : public SelectivityBase<Type> {
   virtual const Type evaluate(const Type &x, size_t pos) {
     //formula for i_age_year
     //size_t i_age_year = pos * this->n_ages + x; // might need adjustment if x starts at 1 // EML: Is x just an additional time-varying "offset" to mean selectivity at age estimates?
-    // size_t i_age_year = pos * this->n_ages + x - this->min_age;
-    size_t i_age_year = x - this->min_age;
     // does pos always start at 0, so that we apply the index correctly
     Type a = static_cast<Type>(0.0);
     Type b = static_cast<Type>(1.0);
-    return fims_math::inv_logit<Type>(a, b, this->logit_sel_at_age[i_age_year]);
-    //return fims_math::inv_logit<Type>(a, b, logit_sel_at_age.get_force_scalar[i_age_year]); 
+    size_t i_age_year = pos * this->n_ages + x - this->min_age;
+    return fims_math::inv_logit<Type>(a, b, logit_sel_at_age.get_force_scalar_wrap(i_age_year)); 
+
+    //size_t i_age_year = x - this->min_age;
+    //return fims_math::inv_logit<Type>(a, b, this->logit_sel_at_age[i_age_year]);
   }
 };
 

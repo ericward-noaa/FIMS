@@ -620,11 +620,11 @@ class SelectivityatAgeInterface : public SelectivityInterfaceBase {
   // /**
   // * @brief Vector of ages.
   // */
-  //RealVector ages; //AJ: placeholder for reading in ages for calculation of min_age
+  RealVector ages; //AJ: placeholder for reading in ages for calculation of min_age
   // /**
   // * @brief Minimum observed age
   // */
-  //SharedInt min_age = 0; //AJ: placeholder for calculating minimum age
+  SharedInt min_age = 0; //AJ: placeholder for calculating minimum age
   /**
    * @brief Age-specific selectivity parameter values.
    */
@@ -648,8 +648,8 @@ class SelectivityatAgeInterface : public SelectivityInterfaceBase {
   SelectivityatAgeInterface(const SelectivityatAgeInterface &other)
       : SelectivityInterfaceBase(other),
         n_ages(other.n_ages),
-        //ages(other.ages), // AJ placeholder
-        //min_age(other.min_age), // AJ placeholder
+        ages(other.ages), // AJ placeholder
+        min_age(other.min_age), // AJ placeholder
         logit_sel_at_age(other.logit_sel_at_age) {}
 
   /**
@@ -671,7 +671,7 @@ class SelectivityatAgeInterface : public SelectivityInterfaceBase {
   virtual double evaluate(double x) { 
     fims_popdy::SelectivityatAge<double> SelatAge;
     SelatAge.n_ages = this->n_ages.get(); // AJ: is it necessary to call in n_ages here?
-    //SelatAge.min_age = std::min(this->ages); //AJ: placeholder for calculating the minimum age
+    SelatAge.min_age = std::min(this->ages); //AJ: placeholder for calculating the minimum age
     SelatAge.logit_sel_at_age = this->logit_sel_at_age.initial_value_m; 
     return SelatAge.evaluate(x); 
   }
@@ -758,7 +758,7 @@ class SelectivityatAgeInterface : public SelectivityInterfaceBase {
     // set relative info
     selectivity->id = this->id;
     selectivity->n_ages = this->n_ages.get();
-    //selectivity->min_age = std::min(ages); // AJ: placeholder
+    selectivity->min_age = std::min(ages); // AJ: placeholder
     selectivity->logit_sel_at_age.resize(this->logit_sel_at_age.size());
     for (size_t i = 0; i < this->logit_sel_at_age.size(); i++) {
       selectivity->logit_sel_at_age[i] =
