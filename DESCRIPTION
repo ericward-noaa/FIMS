@@ -73,6 +73,7 @@ BugReports: https://github.com/noaa-fims/fims/issues
 Depends:
     R (>= 4.1.0)
 Imports:
+    broom,
     cli,
     dplyr,
     ggplot2,
@@ -87,7 +88,8 @@ Imports:
     stats,
     tibble,
     TMB (>= 1.8.0),
-    utils
+    utils,
+    yardstick
 Suggests:
     covr,
     devtools,
@@ -103,6 +105,7 @@ Suggests:
     rmarkdown,
     snowfall,
     SparseNUTS,
+    spelling,
     stockplotr,
     styler,
     testdown,
