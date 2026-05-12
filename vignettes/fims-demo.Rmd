@@ -497,12 +497,22 @@ stockplotr::plot_biomass(
 
 Using the yardstick metrics, the age-only and length-only fits can be compared quantitatively
 
-```{r}
+```{r get-fit-metrics}
 dplyr::bind_rows(
   get_fit_metrics(age_only_fit, group_by = "label") |> dplyr::mutate(model = "age_only"),
   get_fit_metrics(length_only_fit, group_by = "label") |> dplyr::mutate(model = "length_only")
 ) |>
   dplyr::filter(.metric == "rmse") |>
   tidyr::pivot_wider(names_from = model, values_from = .estimate)
+```
+
+We can also look at the summarized models with `glance` and summarized parameter estimates with `tidy`
+
+```{r glance-fit}
+glance(fit)
+```
+
+```{r tidy-fit}
+tidy(fit)
 ```
 
