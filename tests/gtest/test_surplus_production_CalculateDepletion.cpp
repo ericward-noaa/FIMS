@@ -9,8 +9,8 @@ namespace
         std::vector<double> log_expected_depletion(nyears, 0);
 
         for(size_t year = 0; year < nyears; year++) {
-            surplus_production_model->CalculateCatch(population, year);
-            surplus_production_model->CalculateDepletion(population, year);
+            this->CalculateCatch(population, year);
+            this->CalculateDepletion(population, year);
         }
 
         auto& dq_pop = surplus_production_model->GetPopulationDerivedQuantities(population->GetId());

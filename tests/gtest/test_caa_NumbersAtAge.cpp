@@ -34,8 +34,8 @@ namespace
         size_t pop_id = population->GetId();
         auto& dq = catch_at_age_model->GetPopulationDerivedQuantities(pop_id);
 
-        catch_at_age_model->CalculateMortality(population, i_age_year, year, age);
-        catch_at_age_model->CalculateNumbersAA(population, i_age_year, i_agem1_yearm1, age);
+        this->CalculateMortality(population, i_age_year, year, age);
+        this->CalculateNumbersAA(population, i_age_year, i_agem1_yearm1, age);
 
         std::vector<double> mortality_F(n_years * n_ages, 0);
         std::vector<double> test_naa((n_years + 1) * n_ages, 0);

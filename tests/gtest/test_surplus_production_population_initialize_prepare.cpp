@@ -14,10 +14,6 @@ namespace
 
      TEST_F(SPInitializeTestFixture, Population_Initialize_Works)
     {
-        //TODO: derived quantities are set up in interface so the dq tests below  
-        // are just testing the test fixture. Ideally, we should set up an
-        // R test to ensure all the derived quantities in the interface 
-        //  are correctly initialized and then we can remove the dq tests here.
         surplus_production_model->Initialize();
         auto& dq = surplus_production_model->GetPopulationDerivedQuantities(population->GetId());
         EXPECT_EQ(dq["biomass"].size(), nyears+1);

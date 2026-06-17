@@ -4,16 +4,16 @@
 \alias{initialize_fims}
 \title{Initialize C++ modules via Rcpp for a FIMS model}
 \usage{
-initialize_fims(parameters, data)
+initialize_fims(parameters, data = NULL)
 }
 \arguments{
-\item{parameters}{A tibble returned from \code{\link[=create_default_parameters]{create_default_parameters()}}. The
-tibble can be nested, i.e., contain a data column, or unnested, i.e.,
-\code{tidyr::unnest(create_default_parameters(), cols = "data")}. Regardless, it
-is the primary source of information for what is initialized. That is, if a
-fleet exists in the data but parameter information for how to specify
-selectivity for that fleet is not provided, then selectivity will not be
-initialized for that fleet.}
+\item{parameters}{A model created by \code{\link[=fims_model]{fims_model()}} or a parameter tibble.
+Passing the model is preferred. If a tibble is supplied, it can be nested,
+i.e., contain a data column, or unnested. Regardless, it is the primary
+source of information for what is initialized. That is, if a fleet exists
+in the data but parameter information for how to specify selectivity for
+that fleet is not provided, then selectivity will not be initialized for
+that fleet.}
 
 \item{data}{An S4 object with the \code{FIMSFrame} class, which is returned from
 \code{\link[=FIMSFrame]{FIMSFrame()}}. Passing the data is required because initialization of the
@@ -21,14 +21,16 @@ modules requires passing the data and information regarding the uncertainty
 of that data, i.e., input sample sizes for the multinomial distribution.}
 }
 \value{
-A list is returned with two elements, \code{parameters} and \code{model}. The list can
-be passed to the \code{input} argument of \code{\link[=fit_fims]{fit_fims()}} to fit the model. The first
-element of the list can also be passed to the \code{parameters} argument of
-\code{\link[TMB:MakeADFun]{TMB::MakeADFun()}} if you wish to have more control over the model-fitting
-process.
+A list is returned with three elements: \code{parameters}, \code{model}, and \code{modules}.
+The list can be passed to the \code{input} argument of \code{\link[=fit_fims]{fit_fims()}} to fit the
+model. The first element of the list can also be passed to the \code{parameters}
+argument of \code{\link[TMB:MakeADFun]{TMB::MakeADFun()}} if you wish to have more control over the
+model-fitting process.
 The model element of the returned list stores the instantiated C++ model
 module, e.g., the results of \code{methods::new(CatchAtAge)} for a catch-at-age
 model.
+The modules element stores the instantiated component modules for inspection
+and debugging.
 It is important that you only have one FIMS model initialized in your R
 workspace at a time. Thus, after you initialize and fit the model, you should
 run \code{\link[=clear]{clear()}}.
@@ -48,16 +50,18 @@ at least one fleet and population module.
 data("data_big", package = "FIMS")
 data_4_model <- FIMSFrame(data_big)
 # Instantiate modules
-parameters_list <- data_4_model |>
-  create_default_configurations() |>
-  create_default_parameters(data = data_4_model) |>
-  initialize_fims(data = data_4_model)
+parameters_list <- fims_model(data_4_model) |>
+  fims_growth() |>
+  fims_recruitment() |>
+  fims_maturity() |>
+  fims_observations(fleet = "fleet1") |>
+  initialize_fims()
 clear()
 }
 }
 \seealso{
 \itemize{
-\item \code{\link[=create_default_configurations]{create_default_configurations()}}
+\item \code{\link[=fims_model]{fims_model()}}
 \item \code{\link[=create_default_parameters]{create_default_parameters()}}
 \item \code{\link[=FIMSFrame]{FIMSFrame()}}
 \item \code{\link[=fit_fims]{fit_fims()}}

@@ -16,18 +16,18 @@ namespace
         size_t pop_id = population->GetId();
         auto& population_derived_quantities = catch_at_age_model->GetPopulationDerivedQuantities(pop_id);
 
-        catch_at_age_model->CalculateMortality(population, sb_i_age_year, sb_year, sb_age);
-        catch_at_age_model->CalculateNumbersAA(population, sb_i_age_year, sb_i_agem1_yearm1, sb_age);
+        this->CalculateMortality(population, sb_i_age_year, sb_year, sb_age);
+        this->CalculateNumbersAA(population, sb_i_age_year, sb_i_agem1_yearm1, sb_age);
         for (size_t year = 0; year < n_years; year++) {
            for (size_t age = 0; age < n_ages; age++){
                int i_age_year = year * population->n_ages + age;
-               catch_at_age_model->CalculateMaturityAA(population, i_age_year, age);
+               this->CalculateMaturityAA(population, i_age_year, age);
            }
         }
-        catch_at_age_model->CalculateSpawningBiomass(population, sb_i_age_year, sb_year, sb_age);
+        this->CalculateSpawningBiomass(population, sb_i_age_year, sb_year, sb_age);
 
         // calculating phi0
-        double phi0 = catch_at_age_model->CalculateSBPR0(population);
+        double phi0 = this->CalculateSBPR0(population);
 
         // calculating recruitment for year 5
         int r_year = 5;
@@ -49,7 +49,7 @@ namespace
         (0.2 * phi0 * rzero * (1.0 - steep) + population_derived_quantities["spawning_biomass"][sb_year] * (steep - 0.2)) * fims_math::exp(population->recruitment->log_recruit_devs[r_year-1]); 
 
         // calculate recruitment in population module
-        catch_at_age_model->CalculateRecruitment(population, r_i_age_year, r_year, r_year);
+        this->CalculateRecruitment(population, r_i_age_year, r_year, r_year);
         
         // testing that expected recruitment and population numbers_at_age match
         // EXPECT_DOUBLE_EQ() verifies that the two double values are approximately equal, to within 4 ULPs from each other.

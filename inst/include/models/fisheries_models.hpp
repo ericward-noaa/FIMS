@@ -10,6 +10,7 @@
 #ifndef FIMS_MODELS_FISHERIES_MODELS_HPP
 #define FIMS_MODELS_FISHERIES_MODELS_HPP
 
+#include "functors/composable_fishery_model.hpp"
 #include "functors/catch_at_age.hpp"
 #include "functors/surplus_production.hpp"
 

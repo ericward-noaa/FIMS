@@ -11,8 +11,14 @@
 
 data <- FIMS::FIMSFrame(data_big)
 
-default_parameters <- create_default_configurations(data = data) |>
-  create_default_parameters(data = data) |>
+default_model <- fims_model(data) |>
+  fims_growth() |>
+  fims_recruitment() |>
+  fims_maturity() |>
+  fims_observations(fleet = "fleet1") |>
+  fims_observations(fleet = "survey1")
+
+default_parameters <- default_model$parameters |>
   tidyr::unnest(cols = data)
 
 ## IO correctness ----
@@ -21,14 +27,34 @@ test_that("`initialize_fims()` works with correct inputs", {
   #' @description Test that `initialize_fims()` returns a list.
   expect_type(result, "list")
   #' @description Test that `initialize_fims()` returns an output with correct names.
-  expect_named(result, c("parameters", "model"))
-  #' @description Test that `initialize_fims()` returns a list with two elements.
-  expect_equal(length(result), 2)
+  expect_named(result, c("parameters", "model", "modules"))
+  #' @description Test that `initialize_fims()` returns a list with initialized modules.
+  expect_equal(length(result), 3)
+  expect_named(
+    result$modules,
+    c(
+      "fleets",
+      "selectivities",
+      "landings",
+      "landings_distributions",
+      "indices",
+      "index_distributions",
+      "age_comp",
+      "agecomp_distributions",
+      "length_comp",
+      "lengthcomp_distributions",
+      "recruitment",
+      "recruitment_process",
+      "recruitment_distribution",
+      "growth",
+      "maturity",
+      "population"
+    )
+  )
   #' @description Test that `initialize_fims()` returns a list when it is provided parameters that are nested.
   expect_type(
     initialize_fims(
-      parameters = create_default_configurations(data = data) |>
-        create_default_parameters(data = data),
+      parameters = default_model$parameters,
       data = data
     ),
     "list"
@@ -81,17 +107,13 @@ test_that("`initialize_fims()` works with edge cases", {
   )
   clear()
 
-  missing_recruitment_distribution <- create_default_configurations(data = data) |>
-    tidyr::unnest(cols = data) |>
-    dplyr::rows_update(
-      y = tibble::tibble(
-        module_name = "Recruitment",
-        distribution_type = NA_character_,
-        distribution = NA_character_
-      ),
-      by = "module_name"
-    ) |>
-    create_default_parameters(data = data)
+  missing_recruitment_distribution <- fims_model(data) |>
+    fims_growth() |>
+    fims_recruitment(process_distribution = NA_character_) |>
+    fims_maturity() |>
+    fims_observations(fleet = "fleet1") |>
+    fims_observations(fleet = "survey1") |>
+    (\(model) model$parameters)()
   init_parm_missing_distribution <- initialize_fims(
     parameters = missing_recruitment_distribution,
     data = data
@@ -139,14 +161,14 @@ test_that("`initialize_fims()` returns correct error messages", {
   #' @description Test that `initialize_fims()` handles missing parameters input correctly.
   expect_error(
     initialize_fims(data = data),
-    "The `parameters` argument must be a tibble."
+    "The `parameters` argument must be a FIMS model or a tibble."
   )
   clear()
 
   #' @description Test that `initialize_fims()` handles non-list parameters input correctly.
   expect_error(
     initialize_fims(parameters = "not_a_list", data = data),
-    "The `parameters` argument must be a tibble."
+    "The `parameters` argument must be a FIMS model or a tibble."
   )
   clear()
 
@@ -185,17 +207,13 @@ test_that("`initialize_fims()` returns correct error messages", {
 
   ## Error handling ----
   test_that("`initialize_recruitment()` returns correct error messages", {
-    missing_recruitment_distribution <- create_default_configurations(data = data) |>
-      tidyr::unnest(cols = data) |>
-      dplyr::rows_update(
-        y = tibble::tibble(
-          module_name = "Recruitment",
-          distribution_type = NA_character_,
-          distribution = NA_character_
-        ),
-        by = "module_name"
-      ) |>
-      create_default_parameters(data = data)
+    missing_recruitment_distribution <- fims_model(data) |>
+      fims_growth() |>
+      fims_recruitment(process_distribution = NA_character_) |>
+      fims_maturity() |>
+      fims_observations(fleet = "fleet1") |>
+      fims_observations(fleet = "survey1") |>
+      (\(model) model$parameters)()
     missing_recruitment_distribution_error <-
       missing_recruitment_distribution |>
       tidyr::unnest(cols = data) |>

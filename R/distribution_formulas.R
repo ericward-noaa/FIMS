@@ -334,6 +334,8 @@ initialize_data_distribution <- function(
     new_module <- methods::new(DnormDistribution)
 
     # populate logged standard deviation parameter with log of input
+    new_module$log_sd$resize(length(sd[["value"]]))
+
     purrr::walk(
       seq_along(sd[["value"]]),
       \(x) new_module[["log_sd"]][x][["value"]] <- log(sd[["value"]][x])

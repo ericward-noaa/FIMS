@@ -12,13 +12,13 @@ namespace
         std::vector<double> msy(1, 0);
         // calculate biomass in in suplus production module
         for(size_t year_ = 0; year_ < nyears; year_++) {
-            surplus_production_model->CalculateCatch(population, year_);
-            surplus_production_model->CalculateDepletion(population, year_);
+            this->CalculateCatch(population, year_);
+            this->CalculateDepletion(population, year_);
         }
 
-        surplus_production_model->CalculateIndex(population, year);
-        surplus_production_model->CalculateBiomass(population, year);
-        surplus_production_model->CalculateReferencePoints(population);
+        this->CalculateIndex(population, year);
+        this->CalculateBiomass(population, year);
+        this->CalculateReferencePoints(population);
         auto& dq_pop = surplus_production_model->GetPopulationDerivedQuantities(population->GetId());
 
         fmsy[0] = exp(population->depletion_module->log_growth_rate[0]) *
@@ -40,13 +40,13 @@ namespace
         std::vector<double> harvest_rate(nyears, 0);
         // calculate biomass in in suplus production module
         for(size_t year_ = 0; year_ < nyears; year_++) {
-            surplus_production_model->CalculateCatch(population, year_);
-            surplus_production_model->CalculateDepletion(population, year_);
+            this->CalculateCatch(population, year_);
+            this->CalculateDepletion(population, year_);
         }
 
-        surplus_production_model->CalculateIndex(population, year);
-        surplus_production_model->CalculateBiomass(population, year);
-        surplus_production_model->CalculateHarvestRate(population, year);
+        this->CalculateIndex(population, year);
+        this->CalculateBiomass(population, year);
+        this->CalculateHarvestRate(population, year);
         auto& dq_pop = surplus_production_model->GetPopulationDerivedQuantities(population->GetId());
 
         harvest_rate[year] = dq_pop["observed_catch"][year] / dq_pop["biomass"][year];

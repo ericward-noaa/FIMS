@@ -11,13 +11,20 @@
 ## Setup ----
 data <- FIMS::FIMSFrame(data_big)
 
-default_configurations <- create_default_configurations(data)
+default_model <- fims_model(data) |>
+  fims_growth() |>
+  fims_recruitment() |>
+  fims_maturity() |>
+  fims_observations(fleet = "fleet1") |>
+  fims_observations(fleet = "survey1")
+
+default_parameter_plan <- build_fims_model_parameter_plan(default_model)
 
 # create_default_parameters ----
 ## IO correctness ----
 test_that("`create_default_parameters()` works with correct inputs", {
   result <- create_default_parameters(
-    configurations = default_configurations,
+    parameter_plan = default_parameter_plan,
     data = data
   )
   result_unnested <- result |>
@@ -55,18 +62,15 @@ test_that("`create_default_parameters()` works with edge cases", {
   # Set up a model without a distribution for recruitment, which should lead to
   # `log_devs` having an estimation_type of "constant" and no `log_sd` parameter
   # being created.
-  updated_configurations <- default_configurations |>
-    tidyr::unnest(cols = data) |>
-    dplyr::rows_update(
-      y = tibble::tibble(
-        module_name = "Recruitment",
-        distribution_type = NA_character_,
-        distribution = NA_character_
-      ),
-      by = "module_name"
-    )
+  updated_parameter_plan <- fims_model(data) |>
+    fims_growth() |>
+    fims_recruitment(process_distribution = NA_character_) |>
+    fims_maturity() |>
+    fims_observations(fleet = "fleet1") |>
+    fims_observations(fleet = "survey1") |>
+    build_fims_model_parameter_plan()
   result <- create_default_parameters(
-    configurations = updated_configurations,
+    parameter_plan = updated_parameter_plan,
     data = data
   )
 

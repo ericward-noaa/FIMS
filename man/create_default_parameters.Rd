@@ -4,19 +4,18 @@
 \alias{create_default_parameters}
 \title{Create default parameters for a FIMS model}
 \usage{
-create_default_parameters(configurations, data)
+create_default_parameters(parameter_plan, data)
 }
 \arguments{
-\item{configurations}{A tibble of model configurations. Typically created
-by \code{\link[=create_default_configurations]{create_default_configurations()}}. Users can modify this tibble
-to customize the model structure before using it as input to this function.}
+\item{parameter_plan}{A model created by \code{\link[=fims_model]{fims_model()}} or an internal
+parameter plan.}
 
 \item{data}{A \code{FIMSFrame} object returned from running \code{\link[=FIMSFrame]{FIMSFrame()}} on
 your long input data.}
 }
 \value{
 A nested \code{tibble} containing information on parameters for your model with
-the same top-level columns as the input tibble passed to \code{configurations}
+the same top-level columns as the input tibble passed to \code{parameter_plan}
 but with additional information in the nested \code{data} column. See below for
 more details:
 \describe{
@@ -55,37 +54,32 @@ PascalCase to match the names used in the C++ code.}
 }
 }
 \description{
-This function generates a tibble with all of the parameters necessary to run
-a FIMS model given the desired high-level configuration that is specified in
-\code{configurations}. The tibble contains default initial values and estimation
-settings required to build and run the model. You can edit the returned
-tibble if you want to changes things such as initial values to values more
-specific to your population before running your model. For example, the
-default maturity parameters will need modified.
+This function returns the parameter tibble needed to run a FIMS model. When
+passed a model created with \code{\link[=fims_model]{fims_model()}}, it returns the model's current
+parameter tibble. You can edit that tibble if you want to change initial
+values or estimation settings before running your model.
 }
 \details{
-The function processes the \code{configurations} tibble, which only contains
-high-level information for running your model by calling internal helper
-functions on each row and returning a multi-row parameter set for each input
-row. For example, if a selectivity for the first fleet is configured as
-\code{"Logistic"}, it takes that single row of input information and returns a
-parameter set with two rows, one for each parameter, \code{"inflection_point"}
-and \code{"slope"}.
+The function processes an internal parameter plan created from model
+components by calling helper functions on each row and returning a multi-row
+parameter set for each input row. For example, if a selectivity component for
+the first fleet uses \code{"Logistic"}, it takes that single row of input
+information and returns a parameter set with two rows, one for each
+parameter, \code{"inflection_point"} and \code{"slope"}.
 }
 \examples{
 \dontrun{
 # Load the example dataset and create a FIMS data frame
-data("data_big")
+data("data_big", package = "FIMS")
 fims_frame <- FIMSFrame(data_big)
 
-# Create default configurations
-default_configurations <- create_default_configurations(fims_frame)
+model <- fims_model(fims_frame) |>
+  fims_growth() |>
+  fims_recruitment() |>
+  fims_maturity() |>
+  fims_observations(fleet = "fleet1")
 
-# Create default parameters
-default_parameters <- create_default_parameters(
-  configurations = default_configurations,
-  data = fims_frame
-) |>
+default_parameters <- model$parameters |>
   tidyr::unnest(cols = data)
 
 # Update selectivity parameters for survey1
@@ -99,27 +93,10 @@ updated_parameters <- default_parameters |>
     by = c("fleet_name", "label")
   )
 
-# Do the same as above except, model fleet1 with double logistic selectivity
-# To see required parameters for double logistic selectivity, run
-# show(DoubleLogisticSelectivity) and look at the Fields list
-parameters_with_double_logistic <- default_configurations |>
-  tidyr::unnest(cols = data) |>
-  dplyr::rows_update(
-    tibble::tibble(
-      module_name = "Selectivity",
-      fleet_name = "fleet1",
-      module_type = "DoubleLogistic"
-    ),
-    by = c("module_name", "fleet_name")
-  ) |>
-  create_default_parameters(
-    data = fims_frame
-  )
 }
 }
 \seealso{
 \itemize{
 \item \code{\link[=FIMSFrame]{FIMSFrame()}}
-\item \code{\link[=create_default_configurations]{create_default_configurations()}}
 }
 }

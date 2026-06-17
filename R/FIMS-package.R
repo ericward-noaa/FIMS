@@ -3,7 +3,6 @@
 #' @export BevertonHoltRecruitment
 #' @export LogDevsRecruitmentProcess
 #' @export LogRRecruitmentProcess
-#' @export CatchAtAge
 #' @export clear
 #' @export CreateTMBModel
 #' @export DlnormDistribution
@@ -11,6 +10,13 @@
 #' @export DnormDistribution
 #' @export DoubleLogisticSelectivity
 #' @export EWAAGrowth
+#' @export fims_depletion
+#' @export fims_growth
+#' @export fims_maturity
+#' @export fims_model
+#' @export fims_observations
+#' @export fims_parameters
+#' @export fims_recruitment
 #' @export Fleet
 #' @export add_shared_prior
 #' @export set_fixed
@@ -42,7 +48,6 @@
 #' @export SharedInt
 #' @export SharedReal
 #' @export SharedString
-#' @export SurplusProduction
 #' @import methods
 #' @import stats
 #' @importFrom ggplot2 .data

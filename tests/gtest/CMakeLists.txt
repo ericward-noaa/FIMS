@@ -2,6 +2,11 @@
 
 include(GoogleTest)
 
+# Defer running test executables until ctest. The default POST_BUILD discovery
+# mode executes every test binary while building, so a runtime environment
+# issue in one test can make plain build creation fail.
+set(CMAKE_GTEST_DISCOVER_TESTS_DISCOVERY_MODE PRE_TEST)
+
 # Add tests: specify add_executable and target_link_libraries
 
 # test_population_dynamics_maturity_logistic
@@ -81,17 +86,28 @@ add_executable(fims_math_dinvgamma
   test_fims_math_dinvgamma.cpp
 )
 
-find_library(R_LIB 
-  NAMES R R.dll R.lib
+find_library(R_LIB
+  NAMES R R.dll R.lib libR R.dll.a
   HINTS
-    "${R_HOME}/lib"         # Linux/macOS: /usr/lib/R/lib
-    "${R_HOME}/bin/x64"     # Windows 64-bit
-    "${R_HOME}/bin"         # Windows fallback
-    "/usr/lib"              # Ubuntu system install (libR.so lands here sometimes)
-    "/usr/local/lib"        # macOS Homebrew / manual installs
-    "/Library/Frameworks/R.framework/Versions/Current/Resources/lib"  # macOS framework install from CRAN
+    "${R_HOME}/lib"          # Linux/macOS and some Windows toolchains
+    "${R_HOME}/lib/x64"      # Windows import library fallback
+    "${R_HOME}/bin/x64"      # Windows 64-bit R.dll
+    "${R_HOME}/bin"          # Windows fallback
+    "/usr/lib"               # Ubuntu system install
+    "/usr/local/lib"         # macOS Homebrew / manual installs
+    "/Library/Frameworks/R.framework/Versions/Current/Resources/lib"
   PATH_SUFFIXES "x64" "i386"
 )
+
+if(NOT R_LIB AND WIN32)
+  find_file(R_LIB
+    NAMES R.dll
+    HINTS
+      "${R_HOME}/bin/x64"
+      "${R_HOME}/bin"
+    PATH_SUFFIXES "x64" "i386"
+  )
+endif()
 
 # Crucial for debugging CI:
 message(STATUS "Final R_LIB path: ${R_LIB}")
@@ -163,6 +179,18 @@ target_link_libraries(population_dynamics_recruitment_process
 )
 
 gtest_discover_tests(population_dynamics_recruitment_process)
+
+# test_composable_fishery_model.cpp
+add_executable(composable_fishery_model
+  test_composable_fishery_model.cpp
+)
+
+target_link_libraries(composable_fishery_model
+  gtest_main
+  fims_test
+)
+
+gtest_discover_tests(composable_fishery_model)
 
 # test_population_dynamics_recruitment_sr_beverton_holt.cpp
 add_executable(population_dynamics_recruitment_sr_beverton_holt

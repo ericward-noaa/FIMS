@@ -11,10 +11,6 @@ namespace
             fit != surplus_production_model->fleets.end(); ++fit) {
             auto &fleet = (*fit).second;
             auto& dq = surplus_production_model->GetFleetDerivedQuantities(fleet->GetId());
-            //TODO: derived quantities are set up in interface so the dq tests below  
-            // are just testing the test fixture. Ideally, we should set up an
-            // R test to ensure all the derived quantities in the interface 
-            //  are correctly initialized and then we can remove the dq tests here.
             EXPECT_EQ(dq["index_expected"].size(), nyears);
             EXPECT_EQ(dq["log_index_expected"].size(), nyears);
             EXPECT_EQ(dq["log_index_to_depletion_carrying_capacity_ratio"].size(), nyears);

@@ -40,167 +40,164 @@ class CAAInitializeTestFixture : public testing::Test {
   }
 
   /**
-   * @brief Initialize CatchAtAge model derived quantities and population/fleet
+   * @brief Initialize CatchAtAge model derived quantities and population/fleet.
    */
-  void InitializeCAA() {
-    typedef fims_popdy::CatchAtAge<double>::fleet_iterator fleet_iterator;
-
-    for (size_t p = 0; p < this->catch_at_age_model->populations.size(); p++) {
-      this->catch_at_age_model->InitializePopulationDerivedQuantities(
-          this->catch_at_age_model->populations[p]->GetId());
-      std::map<std::string, fims::Vector<double>> &derived_quantities =
-          this->catch_at_age_model->GetPopulationDerivedQuantities(
-              this->catch_at_age_model->populations[p]->GetId());
-
-      derived_quantities["total_landings_weight"] = fims::Vector<double>(
-          this->catch_at_age_model->populations[p]->n_years);
-
-      derived_quantities["total_landings_numbers"] = fims::Vector<double>(
-          this->catch_at_age_model->populations[p]->n_years);
-
-      derived_quantities["mortality_F"] = fims::Vector<double>(
-          this->catch_at_age_model->populations[p]->n_years *
-          this->catch_at_age_model->populations[p]->n_ages);
-
-      derived_quantities["mortality_M"] = fims::Vector<double>(
-          this->catch_at_age_model->populations[p]->n_years *
-          this->catch_at_age_model->populations[p]->n_ages);
-
-      derived_quantities["mortality_Z"] = fims::Vector<double>(
-          this->catch_at_age_model->populations[p]->n_years *
-          this->catch_at_age_model->populations[p]->n_ages);
-
-      // TODO: numbers_at_age are resized in rcpp_population, should this be
-      // removed? Removed number_at_age from rcpp_population instead because
-      // they are no longer a part of population.
-      derived_quantities["numbers_at_age"] = fims::Vector<double>(
-          (this->catch_at_age_model->populations[p]->n_years + 1) *
-          this->catch_at_age_model->populations[p]->n_ages);
-
-      derived_quantities["unfished_numbers_at_age"] = fims::Vector<double>(
-          (this->catch_at_age_model->populations[p]->n_years + 1) *
-          this->catch_at_age_model->populations[p]->n_ages);
-
-      derived_quantities["biomass"] = fims::Vector<double>(
-          this->catch_at_age_model->populations[p]->n_years + 1);
-
-      derived_quantities["spawning_biomass"] = fims::Vector<double>(
-          this->catch_at_age_model->populations[p]->n_years + 1);
-
-      derived_quantities["unfished_biomass"] = fims::Vector<double>(
-          this->catch_at_age_model->populations[p]->n_years + 1);
-
-      derived_quantities["unfished_spawning_biomass"] = fims::Vector<double>(
-          this->catch_at_age_model->populations[p]->n_years + 1);
-
-      derived_quantities["proportion_mature_at_age"] = fims::Vector<double>(
-          (this->catch_at_age_model->populations[p]->n_years + 1) *
-          this->catch_at_age_model->populations[p]->n_ages);
-
-      derived_quantities["expected_recruitment"] = fims::Vector<double>(
-          this->catch_at_age_model->populations[p]->n_years + 1);
-
-      derived_quantities["sum_selectivity"] = fims::Vector<double>(
-          this->catch_at_age_model->populations[p]->n_years *
-          this->catch_at_age_model->populations[p]->n_ages);
-
-      this->catch_at_age_model->populations[p]->proportion_female.resize(
-          this->catch_at_age_model->populations[p]->n_ages);
-
-      this->catch_at_age_model->populations[p]->spawning_biomass_ratio.resize(
-          this->catch_at_age_model->populations[p]->n_years + 1);
-
-      this->catch_at_age_model->populations[p]->M.resize(
-          this->catch_at_age_model->populations[p]->n_years *
-          this->catch_at_age_model->populations[p]->n_ages);
-
-      this->catch_at_age_model->populations[p]->f_multiplier.resize(
-          this->catch_at_age_model->populations[p]->n_years);
-    }
-
-    for (fleet_iterator fit = this->catch_at_age_model->fleets.begin();
-         fit != this->catch_at_age_model->fleets.end(); ++fit) {
-      std::shared_ptr<fims_popdy::Fleet<double>> &fleet = (*fit).second;
-      this->catch_at_age_model->InitializeFleetDerivedQuantities(
-          fleet->GetId());
-      std::map<std::string, fims::Vector<double>> &derived_quantities =
-          this->catch_at_age_model->GetFleetDerivedQuantities(fleet->GetId());
-
-      // initialize derive quantities
-      // landings
-      derived_quantities["landings_numbers_at_age"] =
-          fims::Vector<double>(fleet->n_years * fleet->n_ages);
-
-      derived_quantities["landings_weight_at_age"] =
-          fims::Vector<double>(fleet->n_years * fleet->n_ages);
-
-      derived_quantities["landings_numbers_at_length"] =
-          fims::Vector<double>(fleet->n_years * fleet->n_lengths);
-
-      derived_quantities["landings_weight"] =
-          fims::Vector<double>(fleet->n_years);
-
-      derived_quantities["landings_numbers"] =
-          fims::Vector<double>(fleet->n_years);
-
-      derived_quantities["landings_expected"] =
-          fims::Vector<double>(fleet->n_years);
-
-      derived_quantities["log_landings_expected"] =
-          fims::Vector<double>(fleet->n_years);
-
-      derived_quantities["agecomp_proportion"] =
-          fims::Vector<double>(fleet->n_years * fleet->n_ages);
-
-      derived_quantities["lengthcomp_proportion"] =
-          fims::Vector<double>(fleet->n_years * fleet->n_lengths);
-
-      // index
-      derived_quantities["index_numbers_at_age"] =
-          fims::Vector<double>(fleet->n_years * fleet->n_ages);
-
-      derived_quantities["index_weight_at_age"] =
-          fims::Vector<double>(fleet->n_years * fleet->n_ages);
-
-      derived_quantities["index_numbers_at_length"] =
-          fims::Vector<double>(fleet->n_years * fleet->n_lengths);
-
-      derived_quantities["index_weight"] = fims::Vector<double>(fleet->n_years);
-
-      derived_quantities["index_numbers"] =
-          fims::Vector<double>(fleet->n_years);
-
-      derived_quantities["index_expected"] =
-          fims::Vector<double>(fleet->n_years);
-
-      derived_quantities["log_index_expected"] =
-          fims::Vector<double>(fleet->n_years);
-
-      //
-      derived_quantities["catch_index"] = fims::Vector<double>(fleet->n_years);
-
-      derived_quantities["expected_catch"] =
-          fims::Vector<double>(fleet->n_years);
-
-      derived_quantities["expected_index"] =
-          fims::Vector<double>(fleet->n_years);
-
-      derived_quantities["agecomp_expected"] =
-          fims::Vector<double>(fleet->n_years * fleet->n_ages);
-
-      derived_quantities["lengthcomp_expected"] =
-          fims::Vector<double>(fleet->n_years * fleet->n_lengths);
-
-      if (fleet->log_q.size() == 0) {
-        fleet->log_q.resize(1);
-        fleet->log_q[0] = static_cast<double>(0.0);
-      }
-      fleet->q.resize(fleet->log_q.size());
-      fleet->Fmort.resize(fleet->n_years);
-    }
-  }
+  void InitializeCAA() { this->catch_at_age_model->Initialize(); }
 
   void PrepareCAA() { catch_at_age_model->Prepare(); }
+  fims_popdy::ModelContext<double> CreateComponentContext() {
+    return catch_at_age_model->CreateContext();
+  }
+
+  void CalculateInitialNumbersAA(
+      std::shared_ptr<fims_popdy::Population<double>> &population,
+      size_t i_age_year, size_t age) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredNumbersComponent<double> component;
+    component.CalculateInitialNumbersAA(context, population, i_age_year, age);
+  }
+
+  void CalculateNumbersAA(
+      std::shared_ptr<fims_popdy::Population<double>> &population,
+      size_t i_age_year, size_t i_agem1_yearm1, size_t age) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredNumbersComponent<double> component;
+    component.CalculateNumbersAA(context, population, i_age_year,
+                                 i_agem1_yearm1, age);
+  }
+
+  void CalculateUnfishedNumbersAA(
+      std::shared_ptr<fims_popdy::Population<double>> &population,
+      size_t i_age_year, size_t i_agem1_yearm1, size_t age) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredNumbersComponent<double> component;
+    component.CalculateUnfishedNumbersAA(context, population, i_age_year,
+                                         i_agem1_yearm1, age);
+  }
+
+  void CalculateMortality(
+      std::shared_ptr<fims_popdy::Population<double>> &population,
+      size_t i_age_year, size_t year, size_t age) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredMortalityComponent<double> component;
+    component.CalculateMortality(context, population, i_age_year, year, age);
+  }
+
+  void CalculateBiomass(
+      std::shared_ptr<fims_popdy::Population<double>> &population,
+      size_t i_age_year, size_t year, size_t age) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredBiomassComponent<double> component;
+    component.CalculateBiomass(context, population, i_age_year, year, age);
+  }
+
+  void CalculateUnfishedBiomass(
+      std::shared_ptr<fims_popdy::Population<double>> &population,
+      size_t i_age_year, size_t year, size_t age) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredBiomassComponent<double> component;
+    component.CalculateUnfishedBiomass(context, population, i_age_year, year,
+                                       age);
+  }
+
+  void CalculateSpawningBiomass(
+      std::shared_ptr<fims_popdy::Population<double>> &population,
+      size_t i_age_year, size_t year, size_t age) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredBiomassComponent<double> component;
+    component.CalculateSpawningBiomass(context, population, i_age_year, year,
+                                       age);
+  }
+
+  void CalculateUnfishedSpawningBiomass(
+      std::shared_ptr<fims_popdy::Population<double>> &population,
+      size_t i_age_year, size_t year, size_t age) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredBiomassComponent<double> component;
+    component.CalculateUnfishedSpawningBiomass(context, population, i_age_year,
+                                               year, age);
+  }
+
+  void CalculateSpawningBiomassRatio(
+      std::shared_ptr<fims_popdy::Population<double>> &population,
+      size_t year) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredBiomassComponent<double> component;
+    component.CalculateSpawningBiomassRatio(context, population, year);
+  }
+
+  double CalculateSBPR0(
+      std::shared_ptr<fims_popdy::Population<double>> &population) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredBiomassComponent<double> component;
+    return component.CalculateSBPR0(context, population);
+  }
+
+  void CalculateRecruitment(
+      std::shared_ptr<fims_popdy::Population<double>> &population,
+      size_t i_age_year, size_t year, size_t i_dev) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredRecruitmentComponent<double> component;
+    component.CalculateRecruitment(context, population, i_age_year, year,
+                                   i_dev);
+  }
+
+  void CalculateMaturityAA(
+      std::shared_ptr<fims_popdy::Population<double>> &population,
+      size_t i_age_year, size_t age) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredRecruitmentComponent<double> component;
+    component.CalculateMaturityAA(context, population, i_age_year, age);
+  }
+
+  void CalculateLandingsNumbersAA(
+      std::shared_ptr<fims_popdy::Population<double>> &population,
+      size_t i_age_year, size_t year, size_t age) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredFleetPredictionComponent<double> component;
+    component.CalculateLandingsNumbersAA(context, population, i_age_year, year,
+                                         age);
+  }
+
+  void CalculateLandingsWeightAA(
+      std::shared_ptr<fims_popdy::Population<double>> &population,
+      size_t year, size_t age) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredFleetPredictionComponent<double> component;
+    component.CalculateLandingsWeightAA(context, population, year, age);
+  }
+
+  void CalculateLandings(
+      std::shared_ptr<fims_popdy::Population<double>> &population, size_t year,
+      size_t age) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredFleetPredictionComponent<double> component;
+    component.CalculateLandings(context, population, year, age);
+  }
+
+  void CalculateIndexNumbersAA(
+      std::shared_ptr<fims_popdy::Population<double>> &population,
+      size_t i_age_year, size_t year, size_t age) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredFleetPredictionComponent<double> component;
+    component.CalculateIndexNumbersAA(context, population, i_age_year, year,
+                                      age);
+  }
+
+  void CalculateIndexWeightAA(
+      std::shared_ptr<fims_popdy::Population<double>> &population,
+      size_t year, size_t age) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredFleetPredictionComponent<double> component;
+    component.CalculateIndexWeightAA(context, population, year, age);
+  }
+
+  void CalculateIndex(std::shared_ptr<fims_popdy::Population<double>> &population,
+                      size_t i_age_year, size_t year, size_t age) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredFleetPredictionComponent<double> component;
+    component.CalculateIndex(context, population, i_age_year, year, age);
+  }
 
   // Virtual void TearDown() will be called after each test is
   // run. It needs to be defined if there is clearup work to
@@ -390,175 +387,170 @@ class CAAEvaluateTestFixture : public testing::Test {
     int i_age_year = year * population->n_ages + age;
     int i_agem1_yearm1 = (year - 1) * population->n_ages + age - 1;
 
-    catch_at_age_model->CalculateMortality(population, i_age_year, year, age);
-    catch_at_age_model->CalculateNumbersAA(population, i_age_year,
+    this->CalculateMortality(population, i_age_year, year, age);
+    this->CalculateNumbersAA(population, i_age_year,
                                            i_agem1_yearm1, age);
   }
 
   /**
-   * @brief Initialize CatchAtAge model derived quantities and population/fleet
+   * @brief Initialize CatchAtAge model derived quantities and population/fleet.
    */
-  void InitializeCAA() {
-    typedef fims_popdy::CatchAtAge<double>::fleet_iterator fleet_iterator;
-
-    //       // The following are initialized in the rcpp interface: ages,
-    //       log_init_naa,
-    //       //   numbers_at_age, log_Fmort, log_q
-    for (size_t p = 0; p < this->catch_at_age_model->populations.size(); p++) {
-      this->catch_at_age_model->InitializePopulationDerivedQuantities(
-          this->catch_at_age_model->populations[p]->GetId());
-      std::map<std::string, fims::Vector<double>> &derived_quantities =
-          this->catch_at_age_model->GetPopulationDerivedQuantities(
-              this->catch_at_age_model->populations[p]->GetId());
-
-      derived_quantities["total_landings_weight"] = fims::Vector<double>(
-          this->catch_at_age_model->populations[p]->n_years);
-
-      derived_quantities["total_landings_numbers"] = fims::Vector<double>(
-          this->catch_at_age_model->populations[p]->n_years);
-
-      derived_quantities["mortality_F"] = fims::Vector<double>(
-          this->catch_at_age_model->populations[p]->n_years *
-          this->catch_at_age_model->populations[p]->n_ages);
-
-      derived_quantities["mortality_M"] = fims::Vector<double>(
-          this->catch_at_age_model->populations[p]->n_years *
-          this->catch_at_age_model->populations[p]->n_ages);
-
-      derived_quantities["mortality_Z"] = fims::Vector<double>(
-          this->catch_at_age_model->populations[p]->n_years *
-          this->catch_at_age_model->populations[p]->n_ages);
-
-      // TODO: numbers_at_age are resized in rcpp_population, should this be
-      // removed?
-      derived_quantities["numbers_at_age"] = fims::Vector<double>(
-          (this->catch_at_age_model->populations[p]->n_years + 1) *
-          this->catch_at_age_model->populations[p]->n_ages);
-
-      derived_quantities["unfished_numbers_at_age"] = fims::Vector<double>(
-          (this->catch_at_age_model->populations[p]->n_years + 1) *
-          this->catch_at_age_model->populations[p]->n_ages);
-
-      derived_quantities["biomass"] = fims::Vector<double>(
-          this->catch_at_age_model->populations[p]->n_years + 1);
-
-      derived_quantities["spawning_biomass"] = fims::Vector<double>(
-          this->catch_at_age_model->populations[p]->n_years + 1);
-
-      derived_quantities["unfished_biomass"] = fims::Vector<double>(
-          this->catch_at_age_model->populations[p]->n_years + 1);
-
-      derived_quantities["unfished_spawning_biomass"] = fims::Vector<double>(
-          this->catch_at_age_model->populations[p]->n_years + 1);
-
-      derived_quantities["proportion_mature_at_age"] = fims::Vector<double>(
-          (this->catch_at_age_model->populations[p]->n_years + 1) *
-          this->catch_at_age_model->populations[p]->n_ages);
-
-      derived_quantities["expected_recruitment"] = fims::Vector<double>(
-          this->catch_at_age_model->populations[p]->n_years + 1);
-
-      derived_quantities["sum_selectivity"] = fims::Vector<double>(
-          this->catch_at_age_model->populations[p]->n_years *
-          this->catch_at_age_model->populations[p]->n_ages);
-
-      this->catch_at_age_model->populations[p]->proportion_female.resize(
-          this->catch_at_age_model->populations[p]->n_ages);
-
-      this->catch_at_age_model->populations[p]->spawning_biomass_ratio.resize(
-          this->catch_at_age_model->populations[p]->n_years + 1);
-
-      this->catch_at_age_model->populations[p]->M.resize(
-          this->catch_at_age_model->populations[p]->n_years *
-          this->catch_at_age_model->populations[p]->n_ages);
-
-      this->catch_at_age_model->populations[p]->f_multiplier.resize(
-          this->catch_at_age_model->populations[p]->n_years);
-    }
-
-    for (fleet_iterator fit = this->catch_at_age_model->fleets.begin();
-         fit != this->catch_at_age_model->fleets.end(); ++fit) {
-      std::shared_ptr<fims_popdy::Fleet<double>> &fleet = (*fit).second;
-      this->catch_at_age_model->InitializeFleetDerivedQuantities(
-          fleet->GetId());
-      std::map<std::string, fims::Vector<double>> &derived_quantities =
-          this->catch_at_age_model->GetFleetDerivedQuantities(fleet->GetId());
-
-      // initialize derive quantities
-      // landings
-      derived_quantities["landings_numbers_at_age"] =
-          fims::Vector<double>(fleet->n_years * fleet->n_ages);
-
-      derived_quantities["landings_weight_at_age"] =
-          fims::Vector<double>(fleet->n_years * fleet->n_ages);
-
-      derived_quantities["landings_numbers_at_length"] =
-          fims::Vector<double>(fleet->n_years * fleet->n_lengths);
-
-      derived_quantities["landings_weight"] =
-          fims::Vector<double>(fleet->n_years);
-
-      derived_quantities["landings_numbers"] =
-          fims::Vector<double>(fleet->n_years);
-
-      derived_quantities["landings_expected"] =
-          fims::Vector<double>(fleet->n_years);
-
-      derived_quantities["log_landings_expected"] =
-          fims::Vector<double>(fleet->n_years);
-
-      derived_quantities["agecomp_proportion"] =
-          fims::Vector<double>(fleet->n_years * fleet->n_ages);
-
-      derived_quantities["lengthcomp_proportion"] =
-          fims::Vector<double>(fleet->n_years * fleet->n_lengths);
-
-      // index
-      derived_quantities["index_numbers_at_age"] =
-          fims::Vector<double>(fleet->n_years * fleet->n_ages);
-
-      derived_quantities["index_weight_at_age"] =
-          fims::Vector<double>(fleet->n_years * fleet->n_ages);
-
-      derived_quantities["index_numbers_at_length"] =
-          fims::Vector<double>(fleet->n_years * fleet->n_lengths);
-
-      derived_quantities["index_weight"] = fims::Vector<double>(fleet->n_years);
-
-      derived_quantities["index_numbers"] =
-          fims::Vector<double>(fleet->n_years);
-
-      derived_quantities["index_expected"] =
-          fims::Vector<double>(fleet->n_years);
-
-      derived_quantities["log_index_expected"] =
-          fims::Vector<double>(fleet->n_years);
-
-      //
-      derived_quantities["catch_index"] = fims::Vector<double>(fleet->n_years);
-
-      derived_quantities["expected_catch"] =
-          fims::Vector<double>(fleet->n_years);
-
-      derived_quantities["expected_index"] =
-          fims::Vector<double>(fleet->n_years);
-
-      derived_quantities["agecomp_expected"] =
-          fims::Vector<double>(fleet->n_years * fleet->n_ages);
-
-      derived_quantities["lengthcomp_expected"] =
-          fims::Vector<double>(fleet->n_years * fleet->n_lengths);
-
-      if (fleet->log_q.size() == 0) {
-        fleet->log_q.resize(1);
-        fleet->log_q[0] = static_cast<double>(0.0);
-      }
-      fleet->q.resize(fleet->log_q.size());
-      fleet->Fmort.resize(fleet->n_years);
-    }
-  }
+  void InitializeCAA() { this->catch_at_age_model->Initialize(); }
 
   void PrepareCAA() { catch_at_age_model->Prepare(); }
+  fims_popdy::ModelContext<double> CreateComponentContext() {
+    return catch_at_age_model->CreateContext();
+  }
+
+  void CalculateInitialNumbersAA(
+      std::shared_ptr<fims_popdy::Population<double>> &population,
+      size_t i_age_year, size_t age) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredNumbersComponent<double> component;
+    component.CalculateInitialNumbersAA(context, population, i_age_year, age);
+  }
+
+  void CalculateNumbersAA(
+      std::shared_ptr<fims_popdy::Population<double>> &population,
+      size_t i_age_year, size_t i_agem1_yearm1, size_t age) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredNumbersComponent<double> component;
+    component.CalculateNumbersAA(context, population, i_age_year,
+                                 i_agem1_yearm1, age);
+  }
+
+  void CalculateUnfishedNumbersAA(
+      std::shared_ptr<fims_popdy::Population<double>> &population,
+      size_t i_age_year, size_t i_agem1_yearm1, size_t age) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredNumbersComponent<double> component;
+    component.CalculateUnfishedNumbersAA(context, population, i_age_year,
+                                         i_agem1_yearm1, age);
+  }
+
+  void CalculateMortality(
+      std::shared_ptr<fims_popdy::Population<double>> &population,
+      size_t i_age_year, size_t year, size_t age) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredMortalityComponent<double> component;
+    component.CalculateMortality(context, population, i_age_year, year, age);
+  }
+
+  void CalculateBiomass(
+      std::shared_ptr<fims_popdy::Population<double>> &population,
+      size_t i_age_year, size_t year, size_t age) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredBiomassComponent<double> component;
+    component.CalculateBiomass(context, population, i_age_year, year, age);
+  }
+
+  void CalculateUnfishedBiomass(
+      std::shared_ptr<fims_popdy::Population<double>> &population,
+      size_t i_age_year, size_t year, size_t age) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredBiomassComponent<double> component;
+    component.CalculateUnfishedBiomass(context, population, i_age_year, year,
+                                       age);
+  }
+
+  void CalculateSpawningBiomass(
+      std::shared_ptr<fims_popdy::Population<double>> &population,
+      size_t i_age_year, size_t year, size_t age) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredBiomassComponent<double> component;
+    component.CalculateSpawningBiomass(context, population, i_age_year, year,
+                                       age);
+  }
+
+  void CalculateUnfishedSpawningBiomass(
+      std::shared_ptr<fims_popdy::Population<double>> &population,
+      size_t i_age_year, size_t year, size_t age) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredBiomassComponent<double> component;
+    component.CalculateUnfishedSpawningBiomass(context, population, i_age_year,
+                                               year, age);
+  }
+
+  void CalculateSpawningBiomassRatio(
+      std::shared_ptr<fims_popdy::Population<double>> &population,
+      size_t year) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredBiomassComponent<double> component;
+    component.CalculateSpawningBiomassRatio(context, population, year);
+  }
+
+  double CalculateSBPR0(
+      std::shared_ptr<fims_popdy::Population<double>> &population) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredBiomassComponent<double> component;
+    return component.CalculateSBPR0(context, population);
+  }
+
+  void CalculateRecruitment(
+      std::shared_ptr<fims_popdy::Population<double>> &population,
+      size_t i_age_year, size_t year, size_t i_dev) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredRecruitmentComponent<double> component;
+    component.CalculateRecruitment(context, population, i_age_year, year,
+                                   i_dev);
+  }
+
+  void CalculateMaturityAA(
+      std::shared_ptr<fims_popdy::Population<double>> &population,
+      size_t i_age_year, size_t age) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredRecruitmentComponent<double> component;
+    component.CalculateMaturityAA(context, population, i_age_year, age);
+  }
+
+  void CalculateLandingsNumbersAA(
+      std::shared_ptr<fims_popdy::Population<double>> &population,
+      size_t i_age_year, size_t year, size_t age) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredFleetPredictionComponent<double> component;
+    component.CalculateLandingsNumbersAA(context, population, i_age_year, year,
+                                         age);
+  }
+
+  void CalculateLandingsWeightAA(
+      std::shared_ptr<fims_popdy::Population<double>> &population,
+      size_t year, size_t age) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredFleetPredictionComponent<double> component;
+    component.CalculateLandingsWeightAA(context, population, year, age);
+  }
+
+  void CalculateLandings(
+      std::shared_ptr<fims_popdy::Population<double>> &population, size_t year,
+      size_t age) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredFleetPredictionComponent<double> component;
+    component.CalculateLandings(context, population, year, age);
+  }
+
+  void CalculateIndexNumbersAA(
+      std::shared_ptr<fims_popdy::Population<double>> &population,
+      size_t i_age_year, size_t year, size_t age) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredFleetPredictionComponent<double> component;
+    component.CalculateIndexNumbersAA(context, population, i_age_year, year,
+                                      age);
+  }
+
+  void CalculateIndexWeightAA(
+      std::shared_ptr<fims_popdy::Population<double>> &population,
+      size_t year, size_t age) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredFleetPredictionComponent<double> component;
+    component.CalculateIndexWeightAA(context, population, year, age);
+  }
+
+  void CalculateIndex(std::shared_ptr<fims_popdy::Population<double>> &population,
+                      size_t i_age_year, size_t year, size_t age) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredFleetPredictionComponent<double> component;
+    component.CalculateIndex(context, population, i_age_year, year, age);
+  }
 
   virtual void TearDown() override {}
 
@@ -691,169 +683,164 @@ class CAAPrepareTestFixture : public testing::Test {
   }
 
   /**
-   * @brief Initialize CatchAtAge model derived quantities and population/fleet
+   * @brief Initialize CatchAtAge model derived quantities and population/fleet.
    */
-  void InitializeCAA() {
-    typedef fims_popdy::CatchAtAge<double>::fleet_iterator fleet_iterator;
-
-    //       // The following are initialized in the rcpp interface: ages,
-    //       log_init_naa,
-    //       //   numbers_at_age, log_Fmort, log_q
-    for (size_t p = 0; p < this->catch_at_age_model->populations.size(); p++) {
-      this->catch_at_age_model->InitializePopulationDerivedQuantities(
-          this->catch_at_age_model->populations[p]->GetId());
-      std::map<std::string, fims::Vector<double>> &derived_quantities =
-          this->catch_at_age_model->GetPopulationDerivedQuantities(
-              this->catch_at_age_model->populations[p]->GetId());
-
-      derived_quantities["total_landings_weight"] = fims::Vector<double>(
-          this->catch_at_age_model->populations[p]->n_years);
-
-      derived_quantities["total_landings_numbers"] = fims::Vector<double>(
-          this->catch_at_age_model->populations[p]->n_years);
-
-      derived_quantities["mortality_F"] = fims::Vector<double>(
-          this->catch_at_age_model->populations[p]->n_years *
-          this->catch_at_age_model->populations[p]->n_ages);
-
-      derived_quantities["mortality_M"] = fims::Vector<double>(
-          this->catch_at_age_model->populations[p]->n_years *
-          this->catch_at_age_model->populations[p]->n_ages);
-
-      derived_quantities["mortality_Z"] = fims::Vector<double>(
-          this->catch_at_age_model->populations[p]->n_years *
-          this->catch_at_age_model->populations[p]->n_ages);
-
-      // TODO: numbers_at_age are resized in rcpp_population, should this be
-      // removed?
-      derived_quantities["numbers_at_age"] = fims::Vector<double>(
-          (this->catch_at_age_model->populations[p]->n_years + 1) *
-          this->catch_at_age_model->populations[p]->n_ages);
-
-      derived_quantities["unfished_numbers_at_age"] = fims::Vector<double>(
-          (this->catch_at_age_model->populations[p]->n_years + 1) *
-          this->catch_at_age_model->populations[p]->n_ages);
-
-      derived_quantities["biomass"] = fims::Vector<double>(
-          this->catch_at_age_model->populations[p]->n_years + 1);
-
-      derived_quantities["spawning_biomass"] = fims::Vector<double>(
-          this->catch_at_age_model->populations[p]->n_years + 1);
-
-      derived_quantities["unfished_biomass"] = fims::Vector<double>(
-          this->catch_at_age_model->populations[p]->n_years + 1);
-
-      derived_quantities["unfished_spawning_biomass"] = fims::Vector<double>(
-          this->catch_at_age_model->populations[p]->n_years + 1);
-
-      derived_quantities["proportion_mature_at_age"] = fims::Vector<double>(
-          (this->catch_at_age_model->populations[p]->n_years + 1) *
-          this->catch_at_age_model->populations[p]->n_ages);
-
-      derived_quantities["expected_recruitment"] = fims::Vector<double>(
-          this->catch_at_age_model->populations[p]->n_years + 1);
-
-      derived_quantities["sum_selectivity"] = fims::Vector<double>(
-          this->catch_at_age_model->populations[p]->n_years *
-          this->catch_at_age_model->populations[p]->n_ages);
-
-      this->catch_at_age_model->populations[p]->proportion_female.resize(
-          this->catch_at_age_model->populations[p]->n_ages);
-
-      this->catch_at_age_model->populations[p]->spawning_biomass_ratio.resize(
-          this->catch_at_age_model->populations[p]->n_years + 1);
-
-      this->catch_at_age_model->populations[p]->M.resize(
-          this->catch_at_age_model->populations[p]->n_years *
-          this->catch_at_age_model->populations[p]->n_ages);
-
-      this->catch_at_age_model->populations[p]->f_multiplier.resize(
-          this->catch_at_age_model->populations[p]->n_years);
-    }
-
-    for (fleet_iterator fit = this->catch_at_age_model->fleets.begin();
-         fit != this->catch_at_age_model->fleets.end(); ++fit) {
-      std::shared_ptr<fims_popdy::Fleet<double>> &fleet = (*fit).second;
-      this->catch_at_age_model->InitializeFleetDerivedQuantities(
-          fleet->GetId());
-      std::map<std::string, fims::Vector<double>> &derived_quantities =
-          this->catch_at_age_model->GetFleetDerivedQuantities(fleet->GetId());
-
-      // initialize derive quantities
-      // landings
-      derived_quantities["landings_numbers_at_age"] =
-          fims::Vector<double>(fleet->n_years * fleet->n_ages);
-
-      derived_quantities["landings_weight_at_age"] =
-          fims::Vector<double>(fleet->n_years * fleet->n_ages);
-
-      derived_quantities["landings_numbers_at_length"] =
-          fims::Vector<double>(fleet->n_years * fleet->n_lengths);
-
-      derived_quantities["landings_weight"] =
-          fims::Vector<double>(fleet->n_years);
-
-      derived_quantities["landings_numbers"] =
-          fims::Vector<double>(fleet->n_years);
-
-      derived_quantities["landings_expected"] =
-          fims::Vector<double>(fleet->n_years);
-
-      derived_quantities["log_landings_expected"] =
-          fims::Vector<double>(fleet->n_years);
-
-      derived_quantities["agecomp_proportion"] =
-          fims::Vector<double>(fleet->n_years * fleet->n_ages);
-
-      derived_quantities["lengthcomp_proportion"] =
-          fims::Vector<double>(fleet->n_years * fleet->n_lengths);
-
-      // index
-      derived_quantities["index_numbers_at_age"] =
-          fims::Vector<double>(fleet->n_years * fleet->n_ages);
-
-      derived_quantities["index_weight_at_age"] =
-          fims::Vector<double>(fleet->n_years * fleet->n_ages);
-
-      derived_quantities["index_numbers_at_length"] =
-          fims::Vector<double>(fleet->n_years * fleet->n_lengths);
-
-      derived_quantities["index_weight"] = fims::Vector<double>(fleet->n_years);
-
-      derived_quantities["index_numbers"] =
-          fims::Vector<double>(fleet->n_years);
-
-      derived_quantities["index_expected"] =
-          fims::Vector<double>(fleet->n_years);
-
-      derived_quantities["log_index_expected"] =
-          fims::Vector<double>(fleet->n_years);
-
-      //
-      derived_quantities["catch_index"] = fims::Vector<double>(fleet->n_years);
-
-      derived_quantities["expected_catch"] =
-          fims::Vector<double>(fleet->n_years);
-
-      derived_quantities["expected_index"] =
-          fims::Vector<double>(fleet->n_years);
-
-      derived_quantities["agecomp_expected"] =
-          fims::Vector<double>(fleet->n_years * fleet->n_ages);
-
-      derived_quantities["lengthcomp_expected"] =
-          fims::Vector<double>(fleet->n_years * fleet->n_lengths);
-
-      if (fleet->log_q.size() == 0) {
-        fleet->log_q.resize(1);
-        fleet->log_q[0] = static_cast<double>(0.0);
-      }
-      fleet->q.resize(fleet->log_q.size());
-      fleet->Fmort.resize(fleet->n_years);
-    }
-  }
+  void InitializeCAA() { this->catch_at_age_model->Initialize(); }
 
   void PrepareCAA() { catch_at_age_model->Prepare(); }
+  fims_popdy::ModelContext<double> CreateComponentContext() {
+    return catch_at_age_model->CreateContext();
+  }
+
+  void CalculateInitialNumbersAA(
+      std::shared_ptr<fims_popdy::Population<double>> &population,
+      size_t i_age_year, size_t age) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredNumbersComponent<double> component;
+    component.CalculateInitialNumbersAA(context, population, i_age_year, age);
+  }
+
+  void CalculateNumbersAA(
+      std::shared_ptr<fims_popdy::Population<double>> &population,
+      size_t i_age_year, size_t i_agem1_yearm1, size_t age) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredNumbersComponent<double> component;
+    component.CalculateNumbersAA(context, population, i_age_year,
+                                 i_agem1_yearm1, age);
+  }
+
+  void CalculateUnfishedNumbersAA(
+      std::shared_ptr<fims_popdy::Population<double>> &population,
+      size_t i_age_year, size_t i_agem1_yearm1, size_t age) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredNumbersComponent<double> component;
+    component.CalculateUnfishedNumbersAA(context, population, i_age_year,
+                                         i_agem1_yearm1, age);
+  }
+
+  void CalculateMortality(
+      std::shared_ptr<fims_popdy::Population<double>> &population,
+      size_t i_age_year, size_t year, size_t age) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredMortalityComponent<double> component;
+    component.CalculateMortality(context, population, i_age_year, year, age);
+  }
+
+  void CalculateBiomass(
+      std::shared_ptr<fims_popdy::Population<double>> &population,
+      size_t i_age_year, size_t year, size_t age) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredBiomassComponent<double> component;
+    component.CalculateBiomass(context, population, i_age_year, year, age);
+  }
+
+  void CalculateUnfishedBiomass(
+      std::shared_ptr<fims_popdy::Population<double>> &population,
+      size_t i_age_year, size_t year, size_t age) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredBiomassComponent<double> component;
+    component.CalculateUnfishedBiomass(context, population, i_age_year, year,
+                                       age);
+  }
+
+  void CalculateSpawningBiomass(
+      std::shared_ptr<fims_popdy::Population<double>> &population,
+      size_t i_age_year, size_t year, size_t age) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredBiomassComponent<double> component;
+    component.CalculateSpawningBiomass(context, population, i_age_year, year,
+                                       age);
+  }
+
+  void CalculateUnfishedSpawningBiomass(
+      std::shared_ptr<fims_popdy::Population<double>> &population,
+      size_t i_age_year, size_t year, size_t age) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredBiomassComponent<double> component;
+    component.CalculateUnfishedSpawningBiomass(context, population, i_age_year,
+                                               year, age);
+  }
+
+  void CalculateSpawningBiomassRatio(
+      std::shared_ptr<fims_popdy::Population<double>> &population,
+      size_t year) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredBiomassComponent<double> component;
+    component.CalculateSpawningBiomassRatio(context, population, year);
+  }
+
+  double CalculateSBPR0(
+      std::shared_ptr<fims_popdy::Population<double>> &population) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredBiomassComponent<double> component;
+    return component.CalculateSBPR0(context, population);
+  }
+
+  void CalculateRecruitment(
+      std::shared_ptr<fims_popdy::Population<double>> &population,
+      size_t i_age_year, size_t year, size_t i_dev) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredRecruitmentComponent<double> component;
+    component.CalculateRecruitment(context, population, i_age_year, year,
+                                   i_dev);
+  }
+
+  void CalculateMaturityAA(
+      std::shared_ptr<fims_popdy::Population<double>> &population,
+      size_t i_age_year, size_t age) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredRecruitmentComponent<double> component;
+    component.CalculateMaturityAA(context, population, i_age_year, age);
+  }
+
+  void CalculateLandingsNumbersAA(
+      std::shared_ptr<fims_popdy::Population<double>> &population,
+      size_t i_age_year, size_t year, size_t age) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredFleetPredictionComponent<double> component;
+    component.CalculateLandingsNumbersAA(context, population, i_age_year, year,
+                                         age);
+  }
+
+  void CalculateLandingsWeightAA(
+      std::shared_ptr<fims_popdy::Population<double>> &population,
+      size_t year, size_t age) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredFleetPredictionComponent<double> component;
+    component.CalculateLandingsWeightAA(context, population, year, age);
+  }
+
+  void CalculateLandings(
+      std::shared_ptr<fims_popdy::Population<double>> &population, size_t year,
+      size_t age) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredFleetPredictionComponent<double> component;
+    component.CalculateLandings(context, population, year, age);
+  }
+
+  void CalculateIndexNumbersAA(
+      std::shared_ptr<fims_popdy::Population<double>> &population,
+      size_t i_age_year, size_t year, size_t age) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredFleetPredictionComponent<double> component;
+    component.CalculateIndexNumbersAA(context, population, i_age_year, year,
+                                      age);
+  }
+
+  void CalculateIndexWeightAA(
+      std::shared_ptr<fims_popdy::Population<double>> &population,
+      size_t year, size_t age) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredFleetPredictionComponent<double> component;
+    component.CalculateIndexWeightAA(context, population, year, age);
+  }
+
+  void CalculateIndex(std::shared_ptr<fims_popdy::Population<double>> &population,
+                      size_t i_age_year, size_t year, size_t age) {
+    auto context = CreateComponentContext();
+    fims_popdy::AgeStructuredFleetPredictionComponent<double> component;
+    component.CalculateIndex(context, population, i_age_year, year, age);
+  }
 
   virtual void TearDown() override {}
 

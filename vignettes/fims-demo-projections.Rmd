@@ -39,7 +39,7 @@ clear()
 
 ## Without projections
 
-The code below uses the built-in data within FIMS and sets up a simple catch-at-age configuration object that will work with the data. These data and configuration objects will be used for to create an extended data set in the next section. More details about the chunk below can be found in the [introductory vignette](fims-demo.html).
+The code below uses the built-in data within FIMS and sets up a simple catch-at-age model that will work with the data. This data and model structure will be used to create an extended data set in the next section. More details about the chunk below can be found in the [introductory vignette](fims-demo.html).
 
 ```{r data-without-projections}
 # Bring the package data into your environment
@@ -47,8 +47,12 @@ data("data_big")
 # Prepare the package data for being used in a FIMS model
 data_4_model <- FIMSFrame(data_big)
 
-# Create default model configurations based on the data
-default_configurations <- create_default_configurations(data = data_4_model)
+model <- fims_model(data_4_model) |>
+  fims_growth() |>
+  fims_recruitment() |>
+  fims_maturity() |>
+  fims_observations(fleet = "fleet1") |>
+  fims_observations(fleet = "survey1")
 ```
 
 ## Projections
@@ -123,17 +127,20 @@ data_4_projections <- data_big_with_extra_year |>
 
 ### Model
 
-The default configuration from a model without projections can be used as the default configuration. After the parameter configuration is created it must be manipulated to alter the default parameters for things like selectivity, fishing mortality, etc. We believe that it is easier to alter default configurations rather than creating your own from scratch. So, much of what is done below for projections was also done in the [introductory vignette](fims-demo.html).
+The same component stack from a model without projections can be used with the projection data. After the parameters are created they can be manipulated to alter defaults for things like selectivity, fishing mortality, etc. So, much of what is done below for projections was also done in the [introductory vignette](fims-demo.html).
 
 The major difference below compared to a model without projections is that the recruitment deviations for the projection period are fixed at zero. Because the new data object has all years, `FIMS::create_default_parameters()` will ensure that all time-series parameters, e.g., natural mortality, have the correct dimensions.
 
 ```{r projection-model}
-# Take the default configuration with the new data to create some default
-# parameters that we alter to make the model behave a little better
-parameters_projection <- create_default_parameters(
-  configurations = default_configurations,
-  data = data_4_projections
-) |>
+# Build the same component stack with the projection data, then alter
+# parameters to make the model behave a little better.
+parameters_projection <- fims_model(data_4_projections) |>
+  fims_growth() |>
+  fims_recruitment() |>
+  fims_maturity() |>
+  fims_observations(fleet = "fleet1") |>
+  fims_observations(fleet = "survey1") |>
+  (\(model) model$parameters)() |>
   tidyr::unnest(cols = data) |>
   # Update log_Fmort initial values for Fleet1
   # Project the population forward with the terminal year mortality values.

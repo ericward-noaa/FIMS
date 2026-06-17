@@ -17,7 +17,7 @@ namespace
             {
                 int i_age_year = year * population->n_ages + age;
                 // Call FIMS CalculateMortality() function to compare FIMS mortality values with "true" values later
-                catch_at_age_model->CalculateMortality(population, i_age_year, year, age);
+                this->CalculateMortality(population, i_age_year, year, age);
 
                 
             }
@@ -62,7 +62,7 @@ namespace
             {
                 int i_age_year = year * population->n_ages + age;
 
-                catch_at_age_model->CalculateInitialNumbersAA(population, i_age_year, age);
+                this->CalculateInitialNumbersAA(population, i_age_year, age);
 
                 numbers_at_age[i_age_year] = fims_math::exp(population->log_init_naa[age]);
                 EXPECT_EQ(dq["numbers_at_age"][i_age_year], numbers_at_age[i_age_year]);
@@ -93,7 +93,7 @@ namespace
                 if (year == 0 && age > 0){
                     
                     // values from FIMS
-                    catch_at_age_model->CalculateUnfishedNumbersAA(population, i_age_year, age-1, age);
+                    this->CalculateUnfishedNumbersAA(population, i_age_year, age-1, age);
                     // true values from test
                     test_unfished_numbers_at_age[i_age_year] = 
                         test_unfished_numbers_at_age[i_age_year-1] * 
@@ -106,7 +106,7 @@ namespace
                     int i_agem1_yearm1 = (year - 1) * population->n_ages + (age - 1);
                     EXPECT_GT(population->M[i_agem1_yearm1], 0.0);
                     // values from FIMS
-                    catch_at_age_model->CalculateUnfishedNumbersAA(population,i_age_year, i_agem1_yearm1, age);
+                    this->CalculateUnfishedNumbersAA(population,i_age_year, i_agem1_yearm1, age);
                     // true values from test
                     // unfished_numbers_at_age[i_age_year] = unfished_numbers_at_age[i_age_year-1] * fims_math::exp(-fims_math::exp(population.log_M[i_age_year-1]));
                     test_unfished_numbers_at_age[i_age_year] = 
@@ -128,8 +128,8 @@ namespace
 
                 }
 
-                catch_at_age_model->CalculateMaturityAA(population,i_age_year, age);
-                catch_at_age_model->CalculateUnfishedSpawningBiomass(population,i_age_year, year, age);
+                this->CalculateMaturityAA(population,i_age_year, age);
+                this->CalculateUnfishedSpawningBiomass(population,i_age_year, year, age);
                 
                 test_unfished_spawning_biomass[year] += dq["proportion_mature_at_age"][i_age_year] *
                                                         population->proportion_female[age] *

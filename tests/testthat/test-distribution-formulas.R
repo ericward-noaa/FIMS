@@ -91,6 +91,12 @@ fishing_fleet_index_distribution2 <- initialize_data_distribution(
   sd = list(value = fleet_sd[1], estimation_type = "fixed_effects"),
   data_type = "index"
 )
+fishing_fleet_index_distribution3 <- initialize_data_distribution(
+  module = fishing_fleet,
+  family = stats::gaussian(link = "log"),
+  sd = list(value = fleet_sd, estimation_type = "constant"),
+  data_type = "index"
+)
 
 
 ## IO correctness ----
@@ -123,6 +129,11 @@ test_that("`initialize_data_distribution()` works with correct inputs", {
   expect_equal(
     log(fleet_sd[1]),
     fishing_fleet_index_distribution2$log_sd[1]$value
+  )
+  #' @description Test that normal data distributions resize log sd when given a vector.
+  expect_equal(
+    length(fleet_sd),
+    length(fishing_fleet_index_distribution3$log_sd)
   )
 })
 

@@ -590,32 +590,34 @@ initialize_comp <- function(data,
 #' model one needs to instantiate recruitment, growth, and maturity modules and
 #' at least one fleet and population module.
 #'
-#' @param parameters A tibble returned from [create_default_parameters()]. The
-#'   tibble can be nested, i.e., contain a data column, or unnested, i.e.,
-#'   `tidyr::unnest(create_default_parameters(), cols = "data")`. Regardless, it
-#'   is the primary source of information for what is initialized. That is, if a
-#'   fleet exists in the data but parameter information for how to specify
-#'   selectivity for that fleet is not provided, then selectivity will not be
-#'   initialized for that fleet.
+#' @param parameters A model created by [fims_model()] or a parameter tibble.
+#'   Passing the model is preferred. If a tibble is supplied, it can be nested,
+#'   i.e., contain a data column, or unnested. Regardless, it is the primary
+#'   source of information for what is initialized. That is, if a fleet exists
+#'   in the data but parameter information for how to specify selectivity for
+#'   that fleet is not provided, then selectivity will not be initialized for
+#'   that fleet.
 #' @param data An S4 object with the `FIMSFrame` class, which is returned from
 #'   [FIMSFrame()]. Passing the data is required because initialization of the
 #'   modules requires passing the data and information regarding the uncertainty
 #'   of that data, i.e., input sample sizes for the multinomial distribution.
 #' @return
-#' A list is returned with two elements, `parameters` and `model`. The list can
-#' be passed to the `input` argument of [fit_fims()] to fit the model. The first
-#' element of the list can also be passed to the `parameters` argument of
-#' [TMB::MakeADFun()] if you wish to have more control over the model-fitting
-#' process.
+#' A list is returned with three elements: `parameters`, `model`, and `modules`.
+#' The list can be passed to the `input` argument of [fit_fims()] to fit the
+#' model. The first element of the list can also be passed to the `parameters`
+#' argument of [TMB::MakeADFun()] if you wish to have more control over the
+#' model-fitting process.
 #' The model element of the returned list stores the instantiated C++ model
 #' module, e.g., the results of `methods::new(CatchAtAge)` for a catch-at-age
 #' model.
+#' The modules element stores the instantiated component modules for inspection
+#' and debugging.
 #' It is important that you only have one FIMS model initialized in your R
 #' workspace at a time. Thus, after you initialize and fit the model, you should
 #' run [clear()].
 #' @export
 #' @seealso
-#' * [create_default_configurations()]
+#' * [fims_model()]
 #' * [create_default_parameters()]
 #' * [FIMSFrame()]
 #' * [fit_fims()]
@@ -626,16 +628,30 @@ initialize_comp <- function(data,
 #' data("data_big", package = "FIMS")
 #' data_4_model <- FIMSFrame(data_big)
 #' # Instantiate modules
-#' parameters_list <- data_4_model |>
-#'   create_default_configurations() |>
-#'   create_default_parameters(data = data_4_model) |>
-#'   initialize_fims(data = data_4_model)
+#' parameters_list <- fims_model(data_4_model) |>
+#'   fims_growth() |>
+#'   fims_recruitment() |>
+#'   fims_maturity() |>
+#'   fims_observations(fleet = "fleet1") |>
+#'   initialize_fims()
 #' clear()
 #' }
-initialize_fims <- function(parameters, data) {
+initialize_fims <- function(parameters, data = NULL) {
+  if (missing(parameters)) {
+    cli::cli_abort("The {.var parameters} argument must be a FIMS model or a tibble.")
+  }
+
+  if (inherits(parameters, "FIMSModel")) {
+    return(initialize_fims_model(parameters))
+  }
+
   # Validate parameters input
-  if (missing(parameters) || !tibble::is_tibble(parameters)) {
-    cli::cli_abort("The {.var parameters} argument must be a tibble.")
+  if (!tibble::is_tibble(parameters)) {
+    cli::cli_abort("The {.var parameters} argument must be a FIMS model or a tibble.")
+  }
+
+  if (is.null(data)) {
+    cli::cli_abort("The {.var data} argument is required.")
   }
 
   # Check if parameters is a nested tibble. If so, unnest parameters
@@ -659,6 +675,16 @@ initialize_fims <- function(parameters, data) {
       "The `estimation_type` must be one of: {valid_estimation_types}.",
       i = "Invalid values found: {invalid_estimation_types}."
     ))
+  }
+
+  model_families <- parameters |>
+    dplyr::pull(model_family) |>
+    unique() |>
+    stats::na.omit() |>
+    as.character()
+  if (length(model_families) == 1 &&
+      identical(model_families, "surplus_production")) {
+    return(initialize_surplus_production(parameters = parameters, data = data))
   }
 
   # Clear any previous FIMS settings
@@ -782,39 +808,42 @@ initialize_fims <- function(parameters, data) {
       linked_ids = fleet_module_ids
     )
 
-    fleet_sd_input <- parameters |>
-      dplyr::filter(fleet_name == fleet_names[i] & label == "log_sd") |>
-      dplyr::mutate(
-        label = "sd",
-        value = exp(value)
-      )
-
-    if (length(fleet_sd_input) == 0) {
-      cli::cli_abort(c(
-        "Missing required inputs for `log_sd` in fleet `{fleet_name}`."
-      ))
-    }
-
     if ("index" %in% fleet_types &&
       "Index" %in% data_distribution_names_for_fleet_i) {
+      index_distribution <- fims_data_distribution(
+        parameters = parameters,
+        fleet_name = fleet_names[i],
+        module_type = "Index"
+      )
+      index_sd_input <- fims_data_sd_input(
+        parameters = parameters,
+        fleet_name = fleet_names[i],
+        module_type = "Index"
+      )
       fleet_index_distribution[[i]] <- initialize_data_distribution(
         module = fleet[[i]],
-        # TODO: need to update family and match options from the distribution
-        # column from the parameters tibble
-        family = lognormal(link = "log"),
-        sd = fleet_sd_input,
+        family = fims_distribution_family(index_distribution),
+        sd = index_sd_input,
         data_type = "index"
       )
     }
 
     if ("landings" %in% fleet_types &&
       "Landings" %in% data_distribution_names_for_fleet_i) {
+      landings_distribution <- fims_data_distribution(
+        parameters = parameters,
+        fleet_name = fleet_names[i],
+        module_type = "Landings"
+      )
+      landings_sd_input <- fims_data_sd_input(
+        parameters = parameters,
+        fleet_name = fleet_names[i],
+        module_type = "Landings"
+      )
       fleet_landings_distribution[[i]] <- initialize_data_distribution(
         module = fleet[[i]],
-        # TODO: need to update family and match options from the distribution
-        # column from the parameters tibble
-        family = lognormal(link = "log"),
-        sd = fleet_sd_input,
+        family = fims_distribution_family(landings_distribution),
+        sd = landings_sd_input,
         data_type = "landings"
       )
     }
@@ -853,6 +882,8 @@ initialize_fims <- function(parameters, data) {
 
   recruitment_process_input <- parameters |>
     dplyr::filter(module_name == "Recruitment" & distribution_type == "process" & !is.na(distribution))
+  recruitment_distribution <- NULL
+  recruitment_process <- NULL
   if (recruitment_process_input |> nrow() == 0) {
     process_par <- parameters |>
       dplyr::filter(module_name == "Recruitment" & (label == "log_devs" | label == "log_r"))
@@ -868,7 +899,7 @@ initialize_fims <- function(parameters, data) {
         i = "Implement either one of the following options to resolve this
         error:",
         i = "1. Set a distribution and distribution_type for the Recruitment
-        {.var module_name} in configurations tibble.",
+        {.var module_name} in the component-derived parameter plan.",
         i = "2. Set the estimation_type for the recruitment
         {.var {process_par_name}} variable in the parameter tibble to
         {.var constant}."
@@ -890,7 +921,7 @@ initialize_fims <- function(parameters, data) {
         x = "Missing required inputs for recruitment process random or
         fixed effects.",
         i = "There is a distribution specified for the Recruitment
-        {.var module_name} in the configurations tibble, but no parameters are
+        {.var module_name} in the component-derived parameter plan, but no parameters are
         specified for the recruitment process in the parameters tibble.",
         i = "Implement either one of the following options to resolve this
         error:",
@@ -898,7 +929,7 @@ initialize_fims <- function(parameters, data) {
         recruitment process in the parameters tibble with an estimation_type of
         random_effects or fixed_effects.",
         i = "2. Set the distribution for the Recruitment distribution and
-        distribution_type to {.var NA} in the configurations tibble."
+        distribution_type to {.var NA} in the parameter tibble."
       ))
     }
 
@@ -909,11 +940,11 @@ initialize_fims <- function(parameters, data) {
         fixed effects.",
         i = "The estimation type for {.var {par}} is constant, but there is a
         distribution specified for the Recruitment {.var module_name} in the
-        configurations tibble.",
+        component-derived parameter plan.",
         i = "Implement either one of the following options to resolve this
         error:",
         i = "1. Set the distribution for the Recruitment distribution and
-        distribution_type to {.var NA} in the configurations tibble.",
+        distribution_type to {.var NA} in the parameter tibble.",
         i = "2. Set the estimation_type for the recruitment {.var {par}} in the
         parameter tibble to {.var random_effects} or {.var fixed_effects}."
       ))
@@ -971,8 +1002,7 @@ initialize_fims <- function(parameters, data) {
     linked_ids = population_module_ids
   )
 
-  # Set-up TMB
-  # Hard code to be a catch-at-age model
+  # Set up TMB for the age-structured component stack.
   fims_model <- methods::new(CatchAtAge)
   fims_model$AddPopulation(population$get_id())
 
@@ -983,10 +1013,387 @@ initialize_fims <- function(parameters, data) {
       p = get_fixed(),
       re = get_random()
     ),
-    model = fims_model
+    model = fims_model,
+    modules = list(
+      fleets = fleet,
+      selectivities = fleet_selectivity,
+      landings = fleet_landings,
+      landings_distributions = fleet_landings_distribution,
+      indices = fleet_index,
+      index_distributions = fleet_index_distribution,
+      age_comp = fleet_age_comp,
+      agecomp_distributions = fleet_agecomp_distribution,
+      length_comp = fleet_length_comp,
+      lengthcomp_distributions = fleet_lengthcomp_distribution,
+      recruitment = recruitment,
+      recruitment_process = recruitment_process,
+      recruitment_distribution = recruitment_distribution,
+      growth = growth,
+      maturity = maturity,
+      population = population
+    )
   )
 
   return(parameter_list)
+}
+
+initialize_surplus_production <- function(parameters, data) {
+  clear()
+
+  fleet_names <- parameters |>
+    dplyr::pull(fleet_name) |>
+    unique() |>
+    stats::na.omit() |>
+    as.character()
+
+  if (length(fleet_names) == 0) {
+    cli::cli_abort(c(
+      "No fleets found in the provided {.var parameters}."
+    ))
+  }
+
+  fleet <- fleet_landings <- fleet_landings_distribution <-
+    fleet_index <- fleet_index_distribution <-
+    vector("list", length(fleet_names))
+
+  for (i in seq_along(fleet_names)) {
+    fleet_module_ids <- c()
+    fleet_types <- get_data(data) |>
+      dplyr::filter(name == fleet_names[i]) |>
+      dplyr::pull(type) |>
+      unique()
+
+    data_distribution_names_for_fleet_i <- parameters |>
+      dplyr::filter(fleet_name == fleet_names[i] & distribution_type == "Data") |>
+      dplyr::pull(module_type)
+
+    if ("landings" %in% fleet_types &&
+        "Landings" %in% data_distribution_names_for_fleet_i) {
+      fleet_landings[[i]] <- initialize_landings(
+        data = data,
+        fleet_name = fleet_names[i]
+      )
+      fleet_module_ids <- c(
+        fleet_module_ids,
+        c(landings = fleet_landings[[i]]$get_id())
+      )
+    }
+
+    if ("index" %in% fleet_types &&
+        "Index" %in% data_distribution_names_for_fleet_i) {
+      fleet_index[[i]] <- initialize_index(
+        data = data,
+        fleet_name = fleet_names[i]
+      )
+      fleet_module_ids <- c(
+        fleet_module_ids,
+        c(index = fleet_index[[i]]$get_id())
+      )
+    }
+
+    fleet[[i]] <- initialize_surplus_fleet(
+      parameters = parameters,
+      data = data,
+      fleet_name = fleet_names[i],
+      linked_ids = fleet_module_ids
+    )
+
+    if ("index" %in% fleet_types &&
+        "Index" %in% data_distribution_names_for_fleet_i) {
+      fleet_index_distribution[[i]] <- initialize_surplus_index_distribution(
+        module = fleet[[i]],
+        parameters = parameters,
+        fleet_name = fleet_names[i]
+      )
+    }
+
+    if ("landings" %in% fleet_types &&
+        "Landings" %in% data_distribution_names_for_fleet_i) {
+      landings_distribution <- fims_data_distribution(
+        parameters = parameters,
+        fleet_name = fleet_names[i],
+        module_type = "Landings"
+      )
+      sd_input <- fims_data_sd_input(
+        parameters = parameters,
+        fleet_name = fleet_names[i],
+        module_type = "Landings"
+      )
+      fleet_landings_distribution[[i]] <- initialize_data_distribution(
+        module = fleet[[i]],
+        family = fims_distribution_family(landings_distribution),
+        sd = sd_input,
+        data_type = "landings"
+      )
+    }
+  }
+
+  depletion <- initialize_depletion(
+    parameters = parameters,
+    data = data
+  )
+  depletion_distribution <- initialize_depletion_distribution(
+    parameters = parameters,
+    module = depletion
+  )
+
+  population <- initialize_surplus_population(
+    data = data,
+    depletion_id = depletion$get_id(),
+    fleet_ids = purrr::map(fleet, \(x) x$get_id())
+  )
+
+  fims_model <- methods::new(SurplusProduction)
+  fims_model$AddPopulation(population$get_id())
+
+  CreateTMBModel()
+  list(
+    parameters = list(
+      p = get_fixed(),
+      re = get_random()
+    ),
+    model = fims_model,
+    modules = list(
+      fleets = fleet,
+      landings = fleet_landings,
+      landings_distributions = fleet_landings_distribution,
+      indices = fleet_index,
+      index_distributions = fleet_index_distribution,
+      depletion = depletion,
+      depletion_distribution = depletion_distribution,
+      population = population
+    )
+  )
+}
+
+initialize_surplus_fleet <- function(parameters, data, fleet_name, linked_ids) {
+  module <- methods::new(Fleet)
+  module$n_years$set(get_n_years(data))
+  fleet_input <- parameters |>
+    dplyr::filter(
+      module_name == "Fleet",
+      fleet_name == !!fleet_name
+    )
+  set_param_vector(
+    field = "log_q",
+    module = module,
+    module_input = fleet_input,
+    module_class_name = "Fleet"
+  )
+
+  distribution_names_for_fleet <- parameters |>
+    dplyr::filter(fleet_name == !!fleet_name & distribution_type == "Data") |>
+    dplyr::pull(module_type)
+
+  fleet_types <- get_data(data) |>
+    dplyr::filter(name == fleet_name) |>
+    dplyr::pull(type) |>
+    unique()
+
+  if ("landings" %in% fleet_types &&
+      "Landings" %in% distribution_names_for_fleet) {
+    module$SetObservedLandingsDataID(linked_ids[["landings"]])
+  }
+
+  if ("index" %in% fleet_types &&
+      "Index" %in% distribution_names_for_fleet) {
+    module$SetObservedIndexDataID(linked_ids[["index"]])
+  }
+
+  module
+}
+
+initialize_depletion <- function(parameters, data) {
+  depletion_input <- parameters |>
+    dplyr::filter(module_name == "Depletion")
+
+  form <- depletion_input |>
+    dplyr::pull(module_type) |>
+    unique() |>
+    stats::na.omit() |>
+    as.character()
+  if (!identical(form, "PellaTomlinson")) {
+    cli::cli_abort(
+      "Only {.val PellaTomlinson} depletion can be initialized from the R builder."
+    )
+  }
+
+  module <- methods::new(PTDepletion)
+  module$n_years$set(get_n_years(data))
+
+  for (field in c(
+    "log_growth_rate",
+    "log_carrying_capacity",
+    "log_shape",
+    "log_depletion",
+    "log_init_depletion"
+  )) {
+    set_param_vector(
+      field = field,
+      module = module,
+      module_input = depletion_input,
+      module_class_name = "PTDepletion"
+    )
+  }
+
+  module
+}
+
+initialize_depletion_distribution <- function(parameters, module) {
+  process_input <- parameters |>
+    dplyr::filter(
+      module_name == "Depletion",
+      distribution_type == "process",
+      !is.na(distribution)
+    )
+
+  if (nrow(process_input) == 0) {
+    depletion_state <- parameters |>
+      dplyr::filter(module_name == "Depletion", label == "log_depletion")
+    if (any(depletion_state[["estimation_type"]] != "constant")) {
+      cli::cli_abort(c(
+        "Missing depletion process distribution.",
+        i = "Set a depletion process distribution or make `log_depletion` constant."
+      ))
+    }
+    return(NULL)
+  }
+
+  distribution <- process_input |>
+    dplyr::pull(distribution) |>
+    unique()
+  if (length(distribution) != 1 || !identical(distribution, "Dnorm")) {
+    cli::cli_abort(
+      "Only {.val Dnorm} depletion process distributions can be initialized."
+    )
+  }
+
+  sd_input <- process_input |>
+    dplyr::filter(label == "log_sd") |>
+    dplyr::mutate(
+      label = "sd",
+      value = exp(value)
+    )
+  if (nrow(sd_input) == 0) {
+    cli::cli_abort(
+      "Missing required inputs for `log_sd` in the depletion process distribution."
+    )
+  }
+
+  new_module <- methods::new(DnormDistribution)
+  new_module$log_sd$resize(length(sd_input[["value"]]))
+  for (i in seq_along(sd_input[["value"]])) {
+    new_module$log_sd[i]$value <- log(sd_input[["value"]][i])
+    new_module$log_sd[i]$estimation_type$set(sd_input[["estimation_type"]][i])
+  }
+  n_depletion_states <- length(module$log_depletion)
+  new_module$observed_values$resize(n_depletion_states)
+  new_module$expected_values$resize(n_depletion_states)
+  for (i in seq_len(n_depletion_states)) {
+    new_module$observed_values[i]$value <- 0
+    new_module$expected_values[i]$value <- 0
+  }
+  new_module$set_distribution_links(
+    "random_effects",
+    c(module$log_depletion$get_id(), module$log_expected_depletion$get_id())
+  )
+
+  new_module
+}
+
+initialize_surplus_index_distribution <- function(module, parameters, fleet_name) {
+  sd_input <- fims_data_sd_input(
+    parameters = parameters,
+    fleet_name = fleet_name,
+    module_type = "Index"
+  )
+  distribution <- parameters |>
+    fims_data_distribution(
+      fleet_name = fleet_name,
+      module_type = "Index"
+    )
+
+  new_module <- switch(distribution,
+    "Dnorm" = methods::new(DnormDistribution),
+    "Dlnorm" = methods::new(DlnormDistribution),
+    cli::cli_abort(
+      "Unsupported index distribution for surplus production: {.val {distribution}}."
+    )
+  )
+  new_module$log_sd$resize(length(sd_input[["value"]]))
+  for (i in seq_along(sd_input[["value"]])) {
+    new_module$log_sd[i]$value <- log(sd_input[["value"]][i])
+    new_module$log_sd[i]$estimation_type$set(sd_input[["estimation_type"]][i])
+  }
+
+  new_module$set_observed_data(module$GetObservedIndexDataID())
+  new_module$set_distribution_links(
+    "random_effects",
+    c(
+      module$log_index_to_depletion_carrying_capacity_ratio$get_id(),
+      module$mean_log_q$get_id()
+    )
+  )
+
+  new_module
+}
+
+fims_data_distribution <- function(parameters, fleet_name, module_type) {
+  distribution <- parameters |>
+    dplyr::filter(
+      fleet_name == !!fleet_name,
+      module_name == "Data",
+      module_type == !!module_type
+    ) |>
+    dplyr::pull(distribution) |>
+    unique()
+  if (length(distribution) != 1) {
+    cli::cli_abort(
+      "Expected one {tolower(module_type)} distribution for fleet {.val {fleet_name}}."
+    )
+  }
+  distribution
+}
+
+fims_distribution_family <- function(distribution) {
+  switch(distribution,
+    "Dnorm" = gaussian(link = "log"),
+    "Dlnorm" = lognormal(link = "log"),
+    cli::cli_abort("Unsupported data distribution: {.val {distribution}}.")
+  )
+}
+
+fims_data_sd_input <- function(parameters, fleet_name, module_type) {
+  sd_input <- parameters |>
+    dplyr::filter(
+      fleet_name == !!fleet_name,
+      module_name == "Data",
+      module_type == !!module_type,
+      label == "log_sd"
+    ) |>
+    dplyr::mutate(
+      label = "sd",
+      value = exp(value)
+    )
+
+  if (nrow(sd_input) == 0) {
+    cli::cli_abort(
+      "Missing required inputs for `log_sd` in fleet `{fleet_name}`."
+    )
+  }
+
+  sd_input
+}
+
+initialize_surplus_population <- function(data, depletion_id, fleet_ids) {
+  module <- methods::new(Population)
+  module$n_years$set(get_n_years(data))
+  module$n_ages$set(1)
+  module$ages$resize(1)
+  module$ages$set(0, 0)
+  module$SetDepletionID(depletion_id)
+  purrr::walk(fleet_ids, \(fleet_id) module$AddFleet(fleet_id))
+  module
 }
 
 #' Set parameter vector values based on module input

@@ -9,10 +9,10 @@ namespace
 
         std::vector<double> landings_expected(n_years * n_fleets, 0);
         // calculate landings numbers at age in population module
-         catch_at_age_model->CalculateLandingsNumbersAA(population, i_age_year, year, age);
+         this->CalculateLandingsNumbersAA(population, i_age_year, year, age);
 
-        catch_at_age_model->CalculateLandingsWeightAA(population, year, age);
-        catch_at_age_model->CalculateLandings(population, year, age);
+        this->CalculateLandingsWeightAA(population, year, age);
+        this->CalculateLandings(population, year, age);
 
         for (int fleet_ = 0; fleet_ < population->n_fleets; fleet_++)
         {

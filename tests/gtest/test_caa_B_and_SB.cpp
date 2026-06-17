@@ -7,9 +7,9 @@ namespace
     TEST_F(CAAEvaluateTestFixture, CalculateB_and_SB_works)
     {
         uint32_t pop_id = population->GetId();
-        catch_at_age_model->CalculateMaturityAA(population, i_age_year, age);
-        catch_at_age_model->CalculateSpawningBiomass(population, i_age_year, year, age);
-        catch_at_age_model->CalculateBiomass(population, i_age_year, year, age);
+        this->CalculateMaturityAA(population, i_age_year, age);
+        this->CalculateSpawningBiomass(population, i_age_year, year, age);
+        this->CalculateBiomass(population, i_age_year, year, age);
 
         std::vector<double> test_SB(n_years + 1, 0);
         std::vector<double> test_B(n_years + 1, 0);
@@ -37,10 +37,10 @@ namespace
         int i_age_year = year * population->n_ages + age;
         int i_agem1_yearm1 = (year - 1) * population->n_ages + age - 1;
 
-        catch_at_age_model->CalculateMortality(population, i_agem1_yearm1, year-1, age-1);
-        catch_at_age_model->CalculateMaturityAA(population, i_age_year, age);
-        catch_at_age_model->CalculateNumbersAA(population, i_age_year, i_agem1_yearm1, age);
-        catch_at_age_model->CalculateSpawningBiomass(population, i_age_year, year, age);
+        this->CalculateMortality(population, i_agem1_yearm1, year-1, age-1);
+        this->CalculateMaturityAA(population, i_age_year, age);
+        this->CalculateNumbersAA(population, i_age_year, i_agem1_yearm1, age);
+        this->CalculateSpawningBiomass(population, i_age_year, year, age);
 
         std::vector<double> test_SSB(n_years + 1, 0);
 

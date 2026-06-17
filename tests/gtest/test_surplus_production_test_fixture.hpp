@@ -72,40 +72,58 @@ class SPBaseTestFixture : public testing::Test {
     surplus_production_model->populations.push_back(population);
   }
 
-  void SetupDerivedQuantities() {
-    // The following are initialized in the rcpp interface
-    // as derived quantities of the population: biomass, observed_catch,
-    // harvest_rate, fmsy, bmsy, and msy,
-    // and of the fleet: index_expected, log_index_expected, 
-    // log_index_to_depletion_carrying_capacity_ratio, and mean_log_q.
-    this->surplus_production_model->InitializePopulationDerivedQuantities(
-      population->GetId());
-    std::map<std::string, fims::Vector<double>> &derived_quantities =
-      this->surplus_production_model->GetPopulationDerivedQuantities(
-      population->GetId());
-        
-    derived_quantities["biomass"] = fims::Vector<double>(nyears+1);
-    derived_quantities["observed_catch"] = fims::Vector<double>(nyears);
-    derived_quantities["harvest_rate"] = fims::Vector<double>(nyears);
-    derived_quantities["fmsy"] = fims::Vector<double>(1);
-    derived_quantities["bmsy"] = fims::Vector<double>(1);
-    derived_quantities["msy"] = fims::Vector<double>(1);
-  
 
-    for (auto fit = this->surplus_production_model->fleets.begin();
-          fit != this->surplus_production_model->fleets.end(); ++fit) {
-      std::shared_ptr<fims_popdy::Fleet<double>> &fleet = (*fit).second;
-      this->surplus_production_model->InitializeFleetDerivedQuantities(
-          fleet->GetId());
-      std::map<std::string, fims::Vector<double>> &derived_quantities =
-          this->surplus_production_model->GetFleetDerivedQuantities(fleet->GetId());
-      
-      derived_quantities["index_expected"] = fims::Vector<double>(nyears);
-      derived_quantities["log_index_expected"] = fims::Vector<double>(nyears);
-      derived_quantities["log_index_to_depletion_carrying_capacity_ratio"] = fims::Vector<double>(nyears);
-      derived_quantities["mean_log_q"] = fims::Vector<double>(1);
-    } 
+  fims_popdy::ModelContext<double> CreateComponentContext() {
+    return surplus_production_model->CreateContext();
   }
+
+  void CalculateCatch(
+      std::shared_ptr<fims_popdy::Population<double>> &population,
+      size_t year) {
+    auto context = CreateComponentContext();
+    fims_popdy::SurplusProductionDynamicsComponent<double> component;
+    component.CalculateCatch(context, population, year);
+  }
+
+  void CalculateDepletion(
+      std::shared_ptr<fims_popdy::Population<double>> &population,
+      size_t year) {
+    auto context = CreateComponentContext();
+    fims_popdy::SurplusProductionDynamicsComponent<double> component;
+    component.CalculateDepletion(context, population, year);
+  }
+
+  void CalculateIndex(
+      std::shared_ptr<fims_popdy::Population<double>> &population,
+      size_t year) {
+    auto context = CreateComponentContext();
+    fims_popdy::SurplusProductionDynamicsComponent<double> component;
+    component.CalculateIndex(context, population, year);
+  }
+
+  void CalculateBiomass(
+      std::shared_ptr<fims_popdy::Population<double>> &population,
+      size_t year) {
+    auto context = CreateComponentContext();
+    fims_popdy::SurplusProductionDynamicsComponent<double> component;
+    component.CalculateBiomass(context, population, year);
+  }
+
+  void CalculateReferencePoints(
+      std::shared_ptr<fims_popdy::Population<double>> &population) {
+    auto context = CreateComponentContext();
+    fims_popdy::SurplusProductionDynamicsComponent<double> component;
+    component.CalculateReferencePoints(context, population);
+  }
+
+  void CalculateHarvestRate(
+      std::shared_ptr<fims_popdy::Population<double>> &population,
+      size_t year) {
+    auto context = CreateComponentContext();
+    fims_popdy::SurplusProductionDynamicsComponent<double> component;
+    component.CalculateHarvestRate(context, population, year);
+  }
+
 };
 
 // Use test fixture to reuse the same configuration of objects for
@@ -117,7 +135,6 @@ class SPInitializeTestFixture : public SPBaseTestFixture {
   protected:
   void SetUp() override {
     SetupBasicModel();
-    SetupDerivedQuantities();
     for (auto fit = this->surplus_production_model->fleets.begin();
           fit != this->surplus_production_model->fleets.end(); ++fit) {
       std::shared_ptr<fims_popdy::Fleet<double>> &fleet = (*fit).second;
@@ -137,7 +154,6 @@ class SPPrepareTestFixture : public SPBaseTestFixture {
   protected:
   void SetUp() override {
     SetupBasicModel();
-    SetupDerivedQuantities();
 
     // C++ code to set up true values for log_q:
 
@@ -161,12 +177,6 @@ class SPPrepareTestFixture : public SPBaseTestFixture {
       surplus_production_model->fleets[fleet->GetId()]->log_q[0] = 
         log_q_distribution(generator);
     }
-
-    auto depletion = std::make_shared<fims_popdy::PellaTomlinsonDepletion<double>>();
-
-
-
-
   }
 
   virtual void TearDown() {}
@@ -178,7 +188,6 @@ class SPEvaluateTestFixture : public SPBaseTestFixture {
 
   void SetUp() override {
     SetupBasicModel();
-    SetupDerivedQuantities();
     // C++ code to set up true values for log_naa, log_shape,
     // log_Fmort, and log_q:
 

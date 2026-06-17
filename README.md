@@ -50,14 +50,17 @@ data("data_big")
 # Prepare data for FIMS model
 data_4_model <- FIMSFrame(data_big)
 
-# Create parameters
-parameters <- data_4_model |>
-  create_default_configurations() |>
-  create_default_parameters(data = data_4_model)
+# Build a model from components
+model <- fims_model(data_4_model) |>
+  fims_growth() |>
+  fims_recruitment() |>
+  fims_maturity() |>
+  fims_observations(fleet = "fleet1") |>
+  fims_observations(fleet = "survey1")
 
 # Run the  model with optimization
-fit <- parameters |>
-  initialize_fims(data = data_4_model) |>
+fit <- model |>
+  initialize_fims() |>
   fit_fims(optimize = TRUE)
 # Clear memory post-run
 clear()

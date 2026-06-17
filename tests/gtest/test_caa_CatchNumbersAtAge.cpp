@@ -11,8 +11,8 @@ namespace
         auto& dq_pop = catch_at_age_model->GetPopulationDerivedQuantities(pop_id);
 
         // calculate landings numbers at age in population module
-        catch_at_age_model->CalculateLandingsNumbersAA(population, i_age_year, year, age);
-        catch_at_age_model->CalculateLandingsWeightAA(population, year, age);
+        this->CalculateLandingsNumbersAA(population, i_age_year, year, age);
+        this->CalculateLandingsWeightAA(population, year, age);
 
         std::vector<double> mortality_F(n_years * n_ages, 0);
         // dimension of test_landings_naa matches population module, not

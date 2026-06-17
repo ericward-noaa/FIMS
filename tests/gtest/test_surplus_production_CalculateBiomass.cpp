@@ -9,12 +9,12 @@ namespace
         std::vector<double> biomass(nyears, 0);
         // calculate biomass in in suplus production module
         for(size_t year_ = 0; year_ < nyears; year_++) {
-            surplus_production_model->CalculateCatch(population, year_);
-            surplus_production_model->CalculateDepletion(population, year_);
+            this->CalculateCatch(population, year_);
+            this->CalculateDepletion(population, year_);
         }
 
-        surplus_production_model->CalculateIndex(population, year);
-        surplus_production_model->CalculateBiomass(population, year);
+        this->CalculateIndex(population, year);
+        this->CalculateBiomass(population, year);
 
         auto& dq_pop = surplus_production_model->GetPopulationDerivedQuantities(population->GetId());
 

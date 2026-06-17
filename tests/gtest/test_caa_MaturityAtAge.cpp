@@ -12,7 +12,7 @@ namespace
         for (size_t year = 0; year < n_years; year++) {
            for (size_t age = 0; age < n_ages; age++){
                int i_age_year = year * population->n_ages + age;
-               catch_at_age_model->CalculateMaturityAA(population, i_age_year, age);
+               this->CalculateMaturityAA(population, i_age_year, age);
                expect_maturity[i_age_year] = 1.0/(1.0+exp(-(population->ages[age]-inflection_point)*slope));
            }
         }

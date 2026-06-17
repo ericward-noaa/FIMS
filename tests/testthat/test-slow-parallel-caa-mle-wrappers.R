@@ -44,12 +44,13 @@ sim_num <- 4
 # then map through the simulation iterations to apply iteration-specific
 # values from the operating model.
 data_age_length_comp <- FIMSFrame(data_big)
-default_parameters <- create_default_configurations(
-  data = data_age_length_comp
-) |>
-  create_default_parameters(
-    data = data_age_length_comp
-  )
+default_parameters <- fims_model(data_age_length_comp) |>
+  fims_growth() |>
+  fims_recruitment() |>
+  fims_maturity() |>
+  fims_observations(fleet = "fleet1") |>
+  fims_observations(fleet = "survey1") |>
+  (\(model) model$parameters)()
 
 modified_parameters <- purrr::map(1:sim_num, \(iter_id) {
   default_parameters |>

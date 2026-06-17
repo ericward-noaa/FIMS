@@ -10,9 +10,9 @@ namespace
         std::vector<double> index_expected(n_years * n_fleets, 0);
        
         // calculate index numbers at age in population module
-        catch_at_age_model->CalculateIndexNumbersAA(population, i_age_year, year, age);
-        catch_at_age_model->CalculateIndexWeightAA(population, year, age);
-        catch_at_age_model->CalculateIndex(population, i_age_year, year, age);
+        this->CalculateIndexNumbersAA(population, i_age_year, year, age);
+        this->CalculateIndexWeightAA(population, year, age);
+        this->CalculateIndex(population, i_age_year, year, age);
 
         // The test checks a single age in a single year, not an index. 
         // It was developed to test CalculateIndex() function while

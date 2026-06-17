@@ -9,11 +9,11 @@ namespace
         std::vector<double> index(nyears, 0);
         std::vector<double> log_index(nyears, 0);
         for(size_t year_ = 0; year_ < nyears; year_++) {
-            surplus_production_model->CalculateCatch(population, year_);
-            surplus_production_model->CalculateDepletion(population, year_);
+            this->CalculateCatch(population, year_);
+            this->CalculateDepletion(population, year_);
         }
 
-        surplus_production_model->CalculateIndex(surplus_production_model->populations[0], year);
+        this->CalculateIndex(surplus_production_model->populations[0], year);
         for (int fleet_ = 0; fleet_ < population->n_fleets; fleet_++) {
             auto& fleet = population->fleets[fleet_];
             auto& fleet_dq = surplus_production_model->GetFleetDerivedQuantities(fleet->GetId());

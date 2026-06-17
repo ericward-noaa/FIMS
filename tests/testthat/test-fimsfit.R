@@ -227,8 +227,13 @@ test_that("fit_fims() errors when optimization fails to converge", {
   data("data_big", package = "FIMS")
   data_4_model <- FIMSFrame(data_big)
   # Create parameters
-  initialized_poor_model <- create_default_configurations(data_4_model) |>
-    create_default_parameters(data = data_4_model) |>
+  initialized_poor_model <- fims_model(data_4_model) |>
+    fims_growth() |>
+    fims_recruitment() |>
+    fims_maturity() |>
+    fims_observations(fleet = "fleet1") |>
+    fims_observations(fleet = "survey1") |>
+    (\(model) model$parameters)() |>
     tidyr::unnest(cols = data) |>
     dplyr::rows_update(
       tibble::tibble(

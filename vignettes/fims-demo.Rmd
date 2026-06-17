@@ -106,45 +106,24 @@ You can use the base R function `plot(data_4_model)` to see the data types (e.g.
 plot(data_4_model)
 ```
 
-## Configurations
+## Model Components
 
-### `create_default_configurations()`
+### `fims_model()`
 
-The `create_default_configurations()` function is designed to generate a set of default configurations for the various components of a FIMS model. This includes configurations for fleets, growth, maturity, and recruitment modules. By leveraging the structure of the input data, the function can automatically set up initial configurations for each module. By passing the data and configurations to `create_default_parameters()` the function can tailor the defaults based on how many fleets there are and what data types exist. For example, if you have three fleets, then `create_default_configurations()` will set up three logistic selectivity modules.
+`fims_model()` starts from a `FIMSFrame` object. Components are then added with native R pipes. Observation components are specified by fleet, so fleet-specific choices such as selectivity and likelihood distributions live next to the data they describe.
 
-```{r configurations, max.height='100px', attr.output='.numberLines'}
-# Create default configurations based on the data
-default_configurations <- create_default_configurations(data = data_4_model)
-
-default_configurations
-
-# The output is a nested tibble, with details in the `data` column.
-default_configurations_unnested <- default_configurations |>
-  tidyr::unnest(cols = data)
-
-default_configurations_unnested
-```
-
-### Update configurations
-
-The default_configurations are just a starting point. Functions (e.g., `rows_*()`) from `{dplyr}` can be used to modify the default configurations as needed. For example, logistic selectivity for survey1 can be changed to double logistic selectivity.
-```{r updated_configurations, max.height='100px', attr.output='.numberLines'}
-# Update the module_type for survey1's selectivity
-updated_configurations <- default_configurations_unnested |>
-  dplyr::rows_update(
-    y = tibble::tibble(
-      module_name = c("Selectivity"),
-      fleet_name = c("survey1"),
-      module_type = c("DoubleLogistic")
-    ),
-    by = c("module_name", "fleet_name")
+```{r model-components, max.height='100px', attr.output='.numberLines'}
+model <- fims_model(data_4_model) |>
+  fims_growth() |>
+  fims_recruitment() |>
+  fims_maturity() |>
+  fims_observations(fleet = "fleet1") |>
+  fims_observations(
+    fleet = "survey1",
+    selectivity = "DoubleLogistic"
   )
 
-updated_configurations
-
-# Nest updated_configurations
-updated_configurations_nested <- updated_configurations |>
-  tidyr::nest(.by = c(model_family, module_name, fleet_name))
+model
 ```
 
 ## Parameters
@@ -155,7 +134,7 @@ The parameters that are in the model will depend on which modules are used from 
 
 Modules that are available in FIMS are known as reference classes in the C++ code. Each reference class acts as an interface between R and the underlining C++ code that defines FIMS. Several reference classes exist and several more will be created in the future. The beauty of having modules rather than a control file really comes out when more reference classes are created because each reference class can be accessed through R by itself to build up a model rather than needing to modify a control file for future features.
 
-By just passing the configurations and the data to `create_default_parameters()`, the default values for parameters that relate to fleet(s), recruitment, growth, and maturity modules can be created. For example,
+After enough components are added, `model$parameters` contains the default values for parameters that relate to fleet(s), recruitment, growth, and maturity modules. For example,
 
 - "BevertonHolt" for the recruitment module
 - "Dnorm" distribution for recruitment deviations (log_devs)
@@ -163,11 +142,7 @@ By just passing the configurations and the data to `create_default_parameters()`
 - "Logistic" for Maturity module.
 
 ```{r parameters, max.height='100px', attr.output='.numberLines'}
-# Create default parameters based on default_configurations and data
-default_parameters <- create_default_parameters(
-  configurations = default_configurations,
-  data = data_4_model
-)
+default_parameters <- model$parameters
 
 default_parameters
 

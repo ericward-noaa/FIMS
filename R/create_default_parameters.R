@@ -12,31 +12,26 @@ utils::globalVariables(c(
 #' Create default parameters for a FIMS model
 #'
 #' @description
-#' This function generates a tibble with all of the parameters necessary to run
-#' a FIMS model given the desired high-level configuration that is specified in
-#' `configurations`. The tibble contains default initial values and estimation
-#' settings required to build and run the model. You can edit the returned
-#' tibble if you want to changes things such as initial values to values more
-#' specific to your population before running your model. For example, the
-#' default maturity parameters will need modified.
+#' This function returns the parameter tibble needed to run a FIMS model. When
+#' passed a model created with [fims_model()], it returns the model's current
+#' parameter tibble. You can edit that tibble if you want to change initial
+#' values or estimation settings before running your model.
 #'
 #' @details
-#' The function processes the `configurations` tibble, which only contains
-#' high-level information for running your model by calling internal helper
-#' functions on each row and returning a multi-row parameter set for each input
-#' row. For example, if a selectivity for the first fleet is configured as
-#' `"Logistic"`, it takes that single row of input information and returns a
-#' parameter set with two rows, one for each parameter, `"inflection_point"`
-#' and `"slope"`.
+#' The function processes an internal parameter plan created from model
+#' components by calling helper functions on each row and returning a multi-row
+#' parameter set for each input row. For example, if a selectivity component for
+#' the first fleet uses `"Logistic"`, it takes that single row of input
+#' information and returns a parameter set with two rows, one for each
+#' parameter, `"inflection_point"` and `"slope"`.
 #'
-#' @param configurations A tibble of model configurations. Typically created
-#'   by [create_default_configurations()]. Users can modify this tibble
-#'   to customize the model structure before using it as input to this function.
+#' @param parameter_plan A model created by [fims_model()] or an internal
+#'   parameter plan.
 #' @param data A `FIMSFrame` object returned from running [FIMSFrame()] on
 #'   your long input data.
 #' @return
 #' A nested `tibble` containing information on parameters for your model with
-#' the same top-level columns as the input tibble passed to `configurations`
+#' the same top-level columns as the input tibble passed to `parameter_plan`
 #' but with additional information in the nested `data` column. See below for
 #' more details:
 #' \describe{
@@ -76,21 +71,19 @@ utils::globalVariables(c(
 #' @export
 #' @seealso
 #' * [FIMSFrame()]
-#' * [create_default_configurations()]
 #' @examples
 #' \dontrun{
 #' # Load the example dataset and create a FIMS data frame
-#' data("data_big")
+#' data("data_big", package = "FIMS")
 #' fims_frame <- FIMSFrame(data_big)
 #'
-#' # Create default configurations
-#' default_configurations <- create_default_configurations(fims_frame)
+#' model <- fims_model(fims_frame) |>
+#'   fims_growth() |>
+#'   fims_recruitment() |>
+#'   fims_maturity() |>
+#'   fims_observations(fleet = "fleet1")
 #'
-#' # Create default parameters
-#' default_parameters <- create_default_parameters(
-#'   configurations = default_configurations,
-#'   data = fims_frame
-#' ) |>
+#' default_parameters <- model$parameters |>
 #'   tidyr::unnest(cols = data)
 #'
 #' # Update selectivity parameters for survey1
@@ -104,41 +97,53 @@ utils::globalVariables(c(
 #'     by = c("fleet_name", "label")
 #'   )
 #'
-#' # Do the same as above except, model fleet1 with double logistic selectivity
-#' # To see required parameters for double logistic selectivity, run
-#' # show(DoubleLogisticSelectivity) and look at the Fields list
-#' parameters_with_double_logistic <- default_configurations |>
-#'   tidyr::unnest(cols = data) |>
-#'   dplyr::rows_update(
-#'     tibble::tibble(
-#'       module_name = "Selectivity",
-#'       fleet_name = "fleet1",
-#'       module_type = "DoubleLogistic"
-#'     ),
-#'     by = c("module_name", "fleet_name")
-#'   ) |>
-#'   create_default_parameters(
-#'     data = fims_frame
-#'   )
 #' }
 create_default_parameters <- function(
-  configurations,
-  data
+  parameter_plan,
+  data = NULL
 ) {
+  if (inherits(parameter_plan, "FIMSModel")) {
+    model <- parameter_plan
+    if (tibble::is_tibble(model$parameters) && nrow(model$parameters) > 0) {
+      return(model$parameters)
+    }
+    if (is.null(data)) {
+      data <- model$data
+    }
+    parameter_plan <- build_fims_model_parameter_plan(model)
+  }
+
+  if (is.null(data)) {
+    cli::cli_abort("The {.var data} argument is required.")
+  }
+
   # FIXME: use default values if there are no fleets info passed into the
   # function or a fleet is not present but it has data? Maybe we don't want the
   # latter because it could be that we want to drop a fleet from a model but we
   # don't want to alter the data?
 
-  # Check if configurations is a nested tibble. If so, unnest configurations
-  if ("data" %in% names(configurations)) {
-    unnested_configurations <- tidyr::unnest(configurations, cols = data)
+  # Check if parameter_plan is a nested tibble. If so, unnest parameter_plan.
+  if ("data" %in% names(parameter_plan)) {
+    unnested_parameter_plan <- tidyr::unnest(parameter_plan, cols = data)
   } else {
-    unnested_configurations <- configurations
+    unnested_parameter_plan <- parameter_plan
+  }
+
+  model_families <- unnested_parameter_plan |>
+    dplyr::pull(model_family) |>
+    unique() |>
+    stats::na.omit() |>
+    as.character()
+  if (length(model_families) == 1 &&
+      identical(model_families, "surplus_production")) {
+    return(create_default_surplus_production_parameters(
+      parameter_plan = unnested_parameter_plan,
+      data = data
+    ))
   }
 
   # Create fleet parameters
-  fleet_names <- unnested_configurations |>
+  fleet_names <- unnested_parameter_plan |>
     dplyr::pull(fleet_name) |>
     na.omit() |>
     unique()
@@ -146,7 +151,7 @@ create_default_parameters <- function(
     fleet_names,
     function(fleet_name_i) {
       create_default_fleet(
-        unnested_configurations = unnested_configurations,
+        parameter_plan = unnested_parameter_plan,
         current_fleet_name = fleet_name_i,
         data = data
       )
@@ -157,13 +162,13 @@ create_default_parameters <- function(
 
   # Create recruitment parameters
   recruitment_temp <- create_default_recruitment(
-    unnested_configurations = unnested_configurations,
+    parameter_plan = unnested_parameter_plan,
     data = data
   )
 
   # Create maturity parameters
   maturity_temp <- create_default_maturity(
-    unnested_configurations = unnested_configurations,
+    parameter_plan = unnested_parameter_plan,
     data = data
   )
 
@@ -174,7 +179,7 @@ create_default_parameters <- function(
     dplyr::pull(value)
 
   population_temp <- create_default_Population(
-    unnested_configurations = unnested_configurations,
+    parameter_plan = unnested_parameter_plan,
     data,
     log_rzero = log_rzero
   )
@@ -187,10 +192,10 @@ create_default_parameters <- function(
     population_temp
   )
 
-  # Merge with configuration_unnest
-  expanded_configurations <- dplyr::full_join(
+  # Merge generated defaults with the component-derived parameter plan.
+  dplyr::full_join(
     temp,
-    unnested_configurations,
+    unnested_parameter_plan,
     by = c("module_name", "fleet_name", "module_type")
   ) |>
     dplyr::mutate(
@@ -218,8 +223,250 @@ create_default_parameters <- function(
     ) |>
     dplyr::filter(
       !(is.na(label) & is.na(distribution_type) & is.na(distribution) & module_name != "Growth")
+  ) |>
+    tidyr::nest(.by = c(model_family, module_name, fleet_name))
+}
+
+create_default_surplus_production_parameters <- function(parameter_plan, data) {
+  fleet_names <- parameter_plan |>
+    dplyr::pull(fleet_name) |>
+    na.omit() |>
+    unique()
+
+  fleet_temp <- purrr::map(
+    fleet_names,
+    \(fleet_name_i) create_default_surplus_fleet(
+      parameter_plan = parameter_plan,
+      current_fleet_name = fleet_name_i,
+      data = data
+    )
+  ) |>
+    dplyr::bind_rows()
+
+  depletion_temp <- create_default_depletion(
+    parameter_plan = parameter_plan,
+    data = data
+  )
+
+  dplyr::bind_rows(fleet_temp, depletion_temp) |>
+    dplyr::full_join(
+      parameter_plan,
+      by = c("module_name", "fleet_name", "module_type")
+    ) |>
+    dplyr::mutate(
+      model_family = dplyr::coalesce(model_family.y, model_family.x),
+      distribution_type = dplyr::coalesce(
+        distribution_type.y,
+        distribution_type.x
+      ),
+      distribution = dplyr::coalesce(distribution.y, distribution.x)
+    ) |>
+    dplyr::select(-dplyr::ends_with(c(".x", ".y"))) |>
+    tidyr::fill(model_family, .direction = "downup") |>
+    dplyr::select(
+      model_family, module_name, module_type, dplyr::everything()
     ) |>
     tidyr::nest(.by = c(model_family, module_name, fleet_name))
+}
+
+create_default_surplus_fleet <- function(parameter_plan,
+                                         current_fleet_name,
+                                         data) {
+  data_types_present <- get_data(data) |>
+    dplyr::filter(name == current_fleet_name) |>
+    dplyr::pull(type) |>
+    unique()
+
+  distribution_names_for_fleet <- parameter_plan |>
+    dplyr::filter(
+      fleet_name == current_fleet_name,
+      module_name == "Data"
+    ) |>
+    dplyr::pull(module_type)
+
+  if ("index" %in% data_types_present &&
+      "Index" %in% distribution_names_for_fleet) {
+    fleet_index <- get_data(data) |>
+      dplyr::filter(type == "index", name == current_fleet_name) |>
+      dplyr::rename(time = timing)
+
+    q_default <- create_default_parameters_template(n_parameters = 1) |>
+      dplyr::mutate(
+        module_name = "Fleet",
+        label = "log_q",
+        fleet_name = current_fleet_name,
+        value = 0,
+        estimation_type = "fixed_effects"
+      )
+
+    index_distribution <- parameter_plan |>
+      dplyr::filter(
+        fleet_name == current_fleet_name,
+        module_name == "Data",
+        module_type == "Index"
+      ) |>
+      dplyr::pull(distribution)
+
+    index_uncertainty <- get_data(data) |>
+      dplyr::filter(name == current_fleet_name, type == "index") |>
+      dplyr::pull(uncertainty)
+
+    index_distribution_default <- switch(index_distribution,
+      "Dnorm" = create_default_DnormDistribution(
+        value = index_uncertainty,
+        input_type = "data",
+        data = data
+      ),
+      "Dlnorm" = create_default_DlnormDistribution(
+        value = index_uncertainty,
+        input_type = "data",
+        data = data
+      )
+    ) |>
+      dplyr::mutate(
+        module_name = "Data",
+        module_type = "Index",
+        fleet_name = current_fleet_name,
+        time = fleet_index[["time"]]
+      )
+  } else {
+    q_default <- create_default_parameters_template(n_parameters = 1) |>
+      dplyr::mutate(
+        module_name = "Fleet",
+        label = "log_q",
+        fleet_name = current_fleet_name,
+        value = 0,
+        estimation_type = "constant"
+      )
+    index_distribution_default <- NULL
+  }
+
+  if ("landings" %in% data_types_present &&
+      "Landings" %in% distribution_names_for_fleet) {
+    fleet_landings <- get_data(data) |>
+      dplyr::filter(type == "landings", name == current_fleet_name) |>
+      dplyr::rename(time = timing)
+
+    landings_distribution <- parameter_plan |>
+      dplyr::filter(
+        fleet_name == current_fleet_name,
+        module_name == "Data",
+        module_type == "Landings"
+      ) |>
+      dplyr::pull(distribution)
+
+    landings_uncertainty <- get_data(data) |>
+      dplyr::filter(name == current_fleet_name, type == "landings") |>
+      dplyr::pull(uncertainty)
+
+    landings_distribution_default <- switch(landings_distribution,
+      "Dnorm" = create_default_DnormDistribution(
+        value = landings_uncertainty,
+        input_type = "data",
+        data = data
+      ),
+      "Dlnorm" = create_default_DlnormDistribution(
+        value = landings_uncertainty,
+        input_type = "data",
+        data = data
+      )
+    ) |>
+      dplyr::mutate(
+        module_name = "Data",
+        module_type = "Landings",
+        fleet_name = current_fleet_name,
+        time = fleet_landings[["time"]]
+      )
+  } else {
+    landings_distribution_default <- NULL
+  }
+
+  dplyr::bind_rows(
+    q_default,
+    index_distribution_default,
+    landings_distribution_default
+  )
+}
+
+create_default_depletion <- function(parameter_plan, data) {
+  available_forms <- c("PellaTomlinson")
+  form <- parameter_plan |>
+    dplyr::filter(module_name == "Depletion") |>
+    dplyr::pull(module_type)
+  if (length(form) != 1 || !form %in% available_forms) {
+    cli::cli_abort(c(
+      "Invalid `module_type` for Depletion: {.var {form}}",
+      "i" = "Valid options include: {.var {available_forms}}"
+    ))
+  }
+
+  available_distributions <- c("Dnorm")
+  distribution <- parameter_plan |>
+    dplyr::filter(module_name == "Depletion") |>
+    dplyr::pull(distribution)
+  if (length(distribution) != 1 ||
+      (!is.na(distribution) && !distribution %in% available_distributions)) {
+    cli::cli_abort(c(
+      "Invalid `distribution` for Depletion: {.var {distribution}}",
+      "i" = "Valid options include: {.var {available_distributions}}"
+    ))
+  }
+
+  depletion_state <- create_default_parameters_template(
+    n_parameters = get_n_years(data) + 1
+  ) |>
+    dplyr::mutate(
+      module_name = "Depletion",
+      module_type = form,
+      label = "log_depletion",
+      time = get_start_year(data):(get_end_year(data) + 1),
+      value = log(0.9),
+      estimation_type = ifelse(
+        is.na(distribution), "constant", "random_effects"
+      )
+    )
+
+  depletion_scalars <- create_default_parameters_template(n_parameters = 4) |>
+    dplyr::mutate(
+      module_name = "Depletion",
+      module_type = form,
+      label = c(
+        "log_growth_rate",
+        "log_carrying_capacity",
+        "log_shape",
+        "log_init_depletion"
+      ),
+      value = c(log(0.8), log(200), log(2), 0),
+      estimation_type = c(
+        "fixed_effects",
+        "fixed_effects",
+        "constant",
+        "constant"
+      )
+    )
+
+  distribution_default <- depletion_state |> dplyr::slice(0)
+  if (!is.na(distribution)) {
+    distribution_default <- switch(distribution,
+      "Dnorm" = create_default_DnormDistribution(
+        value = 0.1,
+        input_type = "process",
+        data = data
+      )
+    ) |>
+      dplyr::mutate(
+        module_name = "Depletion",
+        module_type = form,
+        label = "log_sd",
+        estimation_type = "fixed_effects"
+      )
+  }
+
+  dplyr::bind_rows(
+    depletion_scalars,
+    depletion_state,
+    distribution_default
+  )
 }
 
 #' Create default parameters for a FIMS model
@@ -260,8 +507,7 @@ create_default_parameters_template <- function(n_parameters = 1) {
 #' @details
 #' The natural log of the initial numbers at age (`log_init_naa.value`) is set
 #' based on unexploited recruitment and natural mortality.
-#' @param unnested_configurations A tibble of model configurations. Typically
-#'   created by the `create_default_configurations()`.
+#' @param parameter_plan An internal parameter plan.
 #' @param data An S4 object. FIMS input data.
 #' @param log_rzero A numeric value representing the natural log of unexploited
 #'   recruitment.
@@ -271,7 +517,7 @@ create_default_parameters_template <- function(n_parameters = 1) {
 #' age and natural mortality rate.
 #' @noRd
 create_default_Population <- function(
-  unnested_configurations,
+  parameter_plan,
   data,
   log_rzero
 ) {
@@ -411,14 +657,13 @@ create_default_selectivity <- function(
 #' selectivity parameters along with distributions for each type of data that
 #' are present for the given fleet.
 #'
-#' @param unnested_configurations A tibble of model configurations. Typically
-#'   created by the `create_default_configurations()`.
+#' @param parameter_plan An internal parameter plan.
 #' @param fleet_name A character. Name of the fleet.
 #' @param data An S4 object. FIMS input data.
 #' @return
 #' A tibble with default parameters for the fleet.
 #' @noRd
-create_default_fleet <- function(unnested_configurations,
+create_default_fleet <- function(parameter_plan,
                                  current_fleet_name,
                                  data) {
   # Input checks
@@ -437,7 +682,7 @@ create_default_fleet <- function(unnested_configurations,
   }
 
   # Create default selectivity parameters
-  selectivity_form <- unnested_configurations |>
+  selectivity_form <- parameter_plan |>
     dplyr::filter(fleet_name == current_fleet_name & module_name == "Selectivity") |>
     dplyr::pull(module_type)
 
@@ -456,7 +701,7 @@ create_default_fleet <- function(unnested_configurations,
     unique()
 
   # Get data likelihood distributions assigned for this fleet
-  distribution_names_for_fleet <- unnested_configurations |>
+  distribution_names_for_fleet <- parameter_plan |>
     dplyr::filter(fleet_name == current_fleet_name & module_name == "Data") |>
     dplyr::pull(module_type)
 
@@ -476,7 +721,7 @@ create_default_fleet <- function(unnested_configurations,
         estimation_type = "fixed_effects"
       )
 
-    index_distribution <- unnested_configurations |>
+    index_distribution <- parameter_plan |>
       dplyr::filter(
         fleet_name == current_fleet_name &
           module_name == "Data" & module_type == "Index"
@@ -536,7 +781,7 @@ create_default_fleet <- function(unnested_configurations,
         estimation_type = "fixed_effects"
       )
 
-    landings_distribution <- unnested_configurations |>
+    landings_distribution <- parameter_plan |>
       dplyr::filter(
         fleet_name == current_fleet_name &
           module_name == "Data" & module_type == "Landings"
@@ -605,12 +850,12 @@ create_default_fleet <- function(unnested_configurations,
 #' A tibble containing the default maturity parameters.
 #' @noRd
 create_default_maturity <- function(
-  unnested_configurations,
+  parameter_plan,
   data
 ) {
   # Input checks
   available_forms <- c("Logistic")
-  form <- unnested_configurations |>
+  form <- parameter_plan |>
     dplyr::filter(module_name == "Maturity") |>
     dplyr::pull(module_type)
   if (!form %in% available_forms) {
@@ -798,14 +1043,13 @@ create_default_DlnormDistribution <- function(
 #' @description
 #' This function sets up default parameters for a recruitment module.
 #'
-#' @param unnested_configurations A tibble of model configurations. Typically
-#'   created by the `create_default_configurations()`.
+#' @param parameter_plan An internal parameter plan.
 #' @param data An S4 object. FIMS input data.
 #' @return
 #' A tibble with the default parameters for recruitment.
 #' @noRd
 create_default_recruitment <- function(
-  unnested_configurations,
+  parameter_plan,
   data
 ) {
   # Input checks
@@ -813,7 +1057,7 @@ create_default_recruitment <- function(
   #       (i.e., multiple populations)
   available_recruitment_forms <- c("BevertonHolt")
   available_distribution_forms <- c("Dnorm")
-  form <- unnested_configurations |>
+  form <- parameter_plan |>
     dplyr::filter(module_name == "Recruitment") |>
     dplyr::pull(module_type)
   if (length(form) != 1) {
@@ -828,7 +1072,7 @@ create_default_recruitment <- function(
       "i" = "Valid options include: {.var {available_recruitment_forms}}"
     ))
   }
-  distribution <- unnested_configurations |>
+  distribution <- parameter_plan |>
     dplyr::filter(module_name == "Recruitment") |>
     dplyr::pull(distribution)
   if (length(distribution) != 1) {

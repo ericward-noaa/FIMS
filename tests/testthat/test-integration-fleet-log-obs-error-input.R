@@ -18,9 +18,13 @@ data("data_big")
 data_4_model <- FIMSFrame(data_big)
 
 # Create parameters
-default_parameters <- data_4_model |>
-  create_default_configurations() |>
-  create_default_parameters(data = data_4_model)
+default_parameters <- fims_model(data_4_model) |>
+  fims_growth() |>
+  fims_recruitment() |>
+  fims_maturity() |>
+  fims_observations(fleet = "fleet1") |>
+  fims_observations(fleet = "survey1") |>
+  (\(model) model$parameters)()
 
 
 ## IO correctness ----

@@ -98,22 +98,33 @@ FetchContent_MakeAvailable(rcpp)
 # Set up R
 MESSAGE(STATUS "Looking for R executable")
 
-EXECUTE_PROCESS(
-  COMMAND which R
-  OUTPUT_VARIABLE R_EXECUTABLE)
+find_program(R_EXECUTABLE
+  NAMES R R.exe
+)
 
 MESSAGE(STATUS "R_EXECUTABLE is ${R_EXECUTABLE}")
 
+find_program(RSCRIPT_EXECUTABLE
+  NAMES Rscript Rscript.exe
+)
+
+if(NOT RSCRIPT_EXECUTABLE)
+  message(FATAL_ERROR "Could not find Rscript. Add Rscript to PATH or set RSCRIPT_EXECUTABLE.")
+endif()
+
+MESSAGE(STATUS "RSCRIPT_EXECUTABLE is ${RSCRIPT_EXECUTABLE}")
+
 EXECUTE_PROCESS(
-		COMMAND R "--slave" "--no-save" "-e" "cat(R.home())"
-		OUTPUT_VARIABLE R_HOME)
+  COMMAND ${RSCRIPT_EXECUTABLE} "--vanilla" "-e" "cat(R.home())"
+  OUTPUT_VARIABLE R_HOME
+  OUTPUT_STRIP_TRAILING_WHITESPACE)
 
 MESSAGE(STATUS "R_HOME is ${R_HOME}")
 
 EXECUTE_PROCESS(
-		COMMAND R "--slave" "--no-save" "-e" "remotes::install_local(dependencies = FALSE)")
+  COMMAND ${RSCRIPT_EXECUTABLE} "--vanilla" "-e" "remotes::install_local(dependencies = FALSE)")
 EXECUTE_PROCESS(
-		COMMAND R "--slave" "--no-save" "-e" "FIMS:::setup_gtest()")
+  COMMAND ${RSCRIPT_EXECUTABLE} "--vanilla" "-e" "FIMS:::setup_gtest()")
 
 # Enable testing for current directory and below
 enable_testing()
@@ -123,7 +134,7 @@ add_library(fims_test INTERFACE)
 
 # Get the exact include path directly from R
 EXECUTE_PROCESS(
-    COMMAND R "--slave" "--no-save" "-e" "cat(R.home('include'))"
+    COMMAND ${RSCRIPT_EXECUTABLE} "--vanilla" "-e" "cat(R.home('include'))"
     OUTPUT_VARIABLE R_INCLUDE_DIR
     OUTPUT_STRIP_TRAILING_WHITESPACE
 )
