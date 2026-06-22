@@ -286,7 +286,7 @@ NULL
 #'   `"agecomp_expected"`, or `"lengthcomp_expected"`.  If `NULL` (default),
 #'   no filtering on label is done.
 #' @param module_id Integer scalar.  The `module_id` of the fleet or survey to
-#'   retain (e.g. `1` for the first fishing fleet, `2` for the first survey in
+#'   retain (e.g., `1` for the first fishing fleet, `2` for the first survey in
 #'   `data_big`).  If `NULL` (default), all modules are included.
 #' @param ... Forwarded to `augment.FIMSFit()` when `x` is a `FIMSFit`.
 #'
