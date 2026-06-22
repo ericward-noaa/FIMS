@@ -200,12 +200,6 @@ get_fit_metrics <- function(
   if (!is.FIMSFit(x)) {
     cli::cli_abort("{.arg x} must be a {.cls FIMSFit} object.")
   }
-  if (!requireNamespace("yardstick", quietly = TRUE)) {
-    cli::cli_abort(
-      "Package {.pkg yardstick} is required. Install it with
-       {.code install.packages('yardstick')}."
-    )
-  }
 
   aug <- augment.FIMSFit(x, include_weights = weighted, ...)
 
