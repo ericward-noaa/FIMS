@@ -282,7 +282,7 @@ NULL
 #' @param x A `FIMSFit` object **or** an already-augmented tibble from
 #'   `augment.FIMSFit()`.
 #' @param stream_label Character scalar.  The value of the `label` column to
-#'   retain, e.g. `"landings_expected"`, `"index_expected"`,
+#'   retain, e.g., `"landings_expected"`, `"index_expected"`,
 #'   `"agecomp_expected"`, or `"lengthcomp_expected"`.  If `NULL` (default),
 #'   no filtering on label is done.
 #' @param module_id Integer scalar.  The `module_id` of the fleet or survey to
