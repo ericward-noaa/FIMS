@@ -459,7 +459,7 @@ FIMSFit <- function(
   # calling obj$gr() again — which segfaults after clear() frees C++ memory.
   # as.numeric() is required because TMB's obj$gr() returns a matrix (1×n)
   # in some call patterns, which would fail the "numeric" slot type check.
-  gradient_vec <- if (length(opt) > 0) {
+  gradient_vector <- if (length(opt) > 0) {
     as.numeric(obj[["gr"]](opt[["par"]]))
   } else {
     rep(NA_real_, length(obj[["par"]]))
