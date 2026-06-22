@@ -97,15 +97,13 @@ augment.FIMSFit <- function(x, include_weights = TRUE, ...) {
   )
 
   out <- fit_rows |>
-    dplyr::select(
-      dplyr::all_of(meta_cols),
-      ".truth"  = "observed",
-      ".pred"   = "expected",
-      dplyr::any_of("uncertainty")
-    ) |>
     dplyr::mutate(
-      .truth = as.numeric(.data$.truth),
-      .pred  = as.numeric(.data$.pred)
+      .truth = as.numeric(.data$observed),
+      .pred  = as.numeric(.data$expected)
+    ) |>
+    dplyr::select(
+      dplyr::all_of(c(meta_cols, ".truth", "expected")),
+      dplyr::any_of("uncertainty")
     )
 
   if (include_weights && "uncertainty" %in% names(out)) {
