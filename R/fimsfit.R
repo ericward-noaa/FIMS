@@ -493,7 +493,7 @@ FIMSFit <- function(
     obj = obj,
     opt = opt,
     max_gradient = max_gradient,
-    gradient = gradient_vec,
+    gradient = gradient_vector,
     report = report,
     sdreport = sdreport,
     number_of_parameters = number_of_parameters,
