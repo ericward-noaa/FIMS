@@ -464,7 +464,7 @@ FIMSFit <- function(
   } else {
     rep(NA_real_, length(obj[["par"]]))
   }
-  max_gradient <- if (length(opt) > 0) max(abs(gradient_vec)) else NA_real_
+  max_gradient <- if (length(opt) > 0) max(abs(gradient_vector)) else NA_real_
 
   # Rename parameters instead of "p"
   parameter_names <- names(get_parameter_names(obj[["par"]]))
