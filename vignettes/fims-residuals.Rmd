@@ -47,7 +47,7 @@ lognormal_residuals <- estimates_big_optimized |>
       (exp(.data$sdlog^2) - 1),
     pearson_residual = (.data$observed - .data$expected_mean) /
       sqrt(.data$expected_variance)
-  ) 
+  )
 ```
 
 Residuals near zero indicate observations close to the fitted expectation; large positive or negative values indicate observations that are poorly predicted under the assumed likelihood. 
@@ -111,5 +111,4 @@ multinomial_residuals |>
   ggplot2::scale_color_manual(values = c("Positive" = "blue", "Negative" = "red")) +
   ggplot2::labs(x = "Year", y = "Age class", color = "Sign") +
   stockplotr::theme_noaa()
-
 ```
