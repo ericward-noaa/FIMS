@@ -287,7 +287,28 @@ class BevertonHoltRecruitmentInterface : public RecruitmentInterfaceBase {
     ss << " \"dimensionality\": {\n";
     ss << "  \"header\": [\"n_years-1\"],\n";
     ss << "  \"dimensions\": [" << this->log_devs.size() << "]\n},\n";
-    ss << "   \"values\":" << this->log_devs << "}]\n";
+    ss << "   \"values\":" << this->log_devs << "}";
+
+    // log_r is only used when recruitment is estimated on the log scale
+    // instead of through log_devs. An unused log_r still has one constant
+    // element, so only report it when at least one element is estimated.
+    bool log_r_estimated = false;
+    for (size_t i = 0; i < this->log_r.size(); i++) {
+      if (this->log_r[i].estimation_type_m.get() != "constant") {
+        log_r_estimated = true;
+      }
+    }
+    if (log_r_estimated) {
+      ss << ",\n{\n";
+      ss << "   \"name\": \"log_r\",\n";
+      ss << "   \"id\":" << this->log_r.id_m << ",\n";
+      ss << "   \"type\": \"vector\",\n";
+      ss << " \"dimensionality\": {\n";
+      ss << "  \"header\": [\"n_years-1\"],\n";
+      ss << "  \"dimensions\": [" << this->log_r.size() << "]\n},\n";
+      ss << "   \"values\":" << this->log_r << "}";
+    }
+    ss << "]\n";
     ss << "}";
     return ss.str();
   }
