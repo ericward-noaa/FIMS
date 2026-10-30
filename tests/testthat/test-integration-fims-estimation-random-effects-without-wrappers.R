@@ -33,8 +33,6 @@ test_that("1. estimation test with recruitment re on log_r", {
     random_effects = c(recruitment = "log_r")
   )
 
-  #' @description Skip test due to current issues with log r estimation.
-  testthat::skip("Skipping test for log r estimation until issues are resolved.")
   #' @description Test that the output from FIMS matches the model comparison project OM values.
   validate_fims(
     report = result_log_r[["report"]],
@@ -69,7 +67,7 @@ test_that("2. compare recruitment log_devs vs log_r implementations", {
   #' @description Verify the log_devs and log_r approach result in comparable negative log-likelihoods.
   expect_equal(result_log_r$report[["nll_components"]], result_log_devs$report[["nll_components"]], tolerance = 1e-4)
   #' @description Verify the log_devs and log_r approach result in comparable expected recruitment.
-  expect_equal(result_log_r$report[["recruitment"]], result_log_devs$report[["recruitment"]], tolerance = 1e-4)
+  expect_equal(result_log_r$report[["expected_recruitment"]], result_log_devs$report[["expected_recruitment"]], tolerance = 1e-4)
 
   clear()
 })
